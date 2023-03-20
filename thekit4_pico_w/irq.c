@@ -43,8 +43,6 @@ static void light_toggle(void) {
 #endif
 
 #if ENABLE_GPS
-// defined in gps.c
-extern struct gps_status gps_status;
 
 static void gps_update_rtc(void) {
     time_t t;
@@ -77,7 +75,11 @@ static void gpio_irq_handler(uint gpio, uint32_t event_mask) {
 }
 
 void irq_init(void) {
+#if ENABLE_LIGHT
     gpio_set_irq_enabled_with_callback(BUTTON1_PIN, BUTTON1_EDGE_TYPE, true, gpio_irq_handler);
     gpio_pull_up(BUTTON1_PIN);
+#endif
+#if ENABLE_GPS
     gpio_set_irq_enabled_with_callback(GPS_PPS_PIN, PPS_EDGE_TYPE, true, gpio_irq_handler);
+#endif
 }

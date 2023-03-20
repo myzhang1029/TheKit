@@ -30,8 +30,6 @@
 #include "lwip/netif.h"
 #include "lwip/apps/mdns.h"
 
-extern cyw43_t cyw43_state;
-
 static void register_mdns(void) {
     cyw43_arch_lwip_begin();
     mdns_resp_init();

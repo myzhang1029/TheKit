@@ -31,9 +31,9 @@
 #include "hardware/watchdog.h"
 #endif
 
-bool has_cyw43 = false;
-struct ntp_client ntp_state;
-struct http_server http_state;
+static bool has_cyw43 = false;
+static struct ntp_client ntp_state;
+static struct http_server http_state;
 
 static void init() {
     stdio_init_all();

@@ -91,10 +91,12 @@ static const size_t DDNS_URI_BUFSIZE = sizeof(DDNS_URI) + sizeof(DDNS_HOST) + si
 #if ENABLE_NTP
 static const char NTP_SERVER[] = "pool.ntp.org";
 static const uint16_t NTP_PORT = 123;
+#endif
+#if ENABLE_NTP || ENABLE_GPS
 // 10 minutes between syncs
 static const uint32_t NTP_INTERVAL_MS = 600 * 1000;
 // Crude TZ conversion
-static const int TZ_DIFF_SEC = -8 * 3600;
+static const int TZ_DIFF_SEC = -7 * 3600;
 #endif
 
 // GPS-related

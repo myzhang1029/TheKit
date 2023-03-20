@@ -66,8 +66,6 @@ struct wifi_config_entry {
     uint32_t auth;
 };
 
-extern bool has_cyw43;
-
 void irq_init(void);
 
 void temperature_init(void);
