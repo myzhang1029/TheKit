@@ -40,8 +40,8 @@ static const uint16_t WRAP = 1000;
 // Light-based alarms
 // Sort chronologically
 static const struct light_sched_entry light_sched[] = {
-    {7, 30, true},
-    {8, 30, false},
+    {7, 0, true},
+    {8, 0, false},
     {21, 30, true},
     {22, 30, false},
 };
