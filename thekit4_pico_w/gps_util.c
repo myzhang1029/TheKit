@@ -1,6 +1,6 @@
 /*
  *  gps_util.c
- *  Copyright (C) 2023 Zhang Maiyun <me@myzhangll.xyz>
+ *  Copyright (C) 2023 Zhang Maiyun <me@maiyun.me>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -1056,7 +1056,7 @@ void test_parse_sentence(void) {
     assert_eq(gps_status.utc_min, 13);
     assert_float_eq(gps_status.utc_sec, 13.0);
     assert_float_eq(gps_status.gps_lat, 37.666667);
-    assert_float_eq(gps_status.gps_lon, -122.383333);   
+    assert_float_eq(gps_status.gps_lon, -122.383333);
     // Test ZDA
     char sentence4[] = "GNZDA,060618.133,23,02,2023,00,00*40";
     strcpy(gps_status.buffer, sentence4);

@@ -1,7 +1,7 @@
 //! Serve on a web interface to control The Kit
 //! Set `stty -F /dev/ttyACM0 -hupcl` in a udev rule first
 //
-// Copyright 2021 Zhang Maiyun <me@myzhangll.xyz
+// Copyright 2021 Zhang Maiyun <me@maiyun.me>
 //
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by

@@ -2,7 +2,7 @@
  *  http_server.c
  *  Heavily refactored from BSD-3-Clause picow_tcp_server.c
  *  Copyright (c) 2022 Raspberry Pi (Trading) Ltd.
- *  Copyright (C) 2022-2023 Zhang Maiyun <me@myzhangll.xyz>
+ *  Copyright (C) 2022-2023 Zhang Maiyun <me@maiyun.me>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,9 +25,9 @@
    | -> http_conn_recv_cb(conn)
       | -> http_req_check_parse(conn)
         -> http_conn_close(conn)
-   | On error: 
+   | On error:
    | -> http_conn_err_cb(conn)
-   | Or: 
+   | Or:
    | -> http_conn_fail(conn)
         -> http_conn_close(conn)
    http_server_close(state)
@@ -145,7 +145,7 @@ static bool http_req_check_parse(struct http_server_conn *conn) {
     }
     // We don't use or care about HTTP version anymore
     // Note the space at the end of this path
-    if (pbuf_memcmp(conn->received, offset_path, "/ ", 2) == 0 
+    if (pbuf_memcmp(conn->received, offset_path, "/ ", 2) == 0
         // unlikely
         || pbuf_memcmp(conn->received, offset_path, "/\r", 2) == 0) {
         http_conn_write(conn, resp_dashboard, 512, 0);
@@ -160,7 +160,7 @@ static bool http_req_check_parse(struct http_server_conn *conn) {
         goto finish;
     }
     // Note the space at the end of this path
-    if (pbuf_memcmp(conn->received, offset_path, "/get_info ", 10) == 0 
+    if (pbuf_memcmp(conn->received, offset_path, "/get_info ", 10) == 0
         // unlikely
         || pbuf_memcmp(conn->received, offset_path, "/get_info\r", 2) == 0) {
         // Max length + nn\r\n\r\n + \0

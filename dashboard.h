@@ -14,7 +14,7 @@
 "" \
 "html {" \
 "    background-image: " \
-"url(\"https://myzhangll.xyz/assets/img/scenery/image1.jpg\");" \
+"url(\"https://maiyun.me/assets/img/scenery/image1.jpg\");" \
 "    background-size: 100vw 100vh;" \
 "    text-align: center;" \
 "}" \

@@ -2,7 +2,7 @@
  *  ntp.c
  *  Heavily refactored from BSD-3-Clause picow_ntp_client.c
  *  Copyright (c) 2022 Raspberry Pi (Trading) Ltd.
- *  Copyright (C) 2022-2023 Zhang Maiyun <me@myzhangll.xyz>
+ *  Copyright (C) 2022-2023 Zhang Maiyun <me@maiyun.me>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
