@@ -69,7 +69,7 @@ static const char resp_500_post[] = "24\r\n\r\n"
 static const char resp_dashboard[] =
     "HTTP/1.0 200 OK\r\n"
     "Content-Type: text/html\r\n"
-    "Content-Length: 4109\r\n\r\n"
+    "Content-Length: 4157\r\n\r\n"
 #include "dashboard.h"
     ;
 

@@ -12,10 +12,11 @@
 ".color4 {background-color: #fffbf4;}" \
 ".color5 {background-color: #ff817b;}" \
 "" \
-"html {" \
+"body {" \
 "    background-image: " \
-"url(\"https://maiyun.me/assets/img/scenery/image1.jpg\");" \
-"    background-size: 100vw 100vh;" \
+"url(\"https://maiyun.me/assets/img/education/uwcpc.jpg\");" \
+"    background-size: cover;" \
+"    background-repeat: no-repeat;" \
 "    text-align: center;" \
 "}" \
 "" \
@@ -27,6 +28,7 @@
 "}" \
 "" \
 "#resblk {" \
+"    color: #ccdbf6;" \
 "    max-width: 100vw;" \
 "    text-align: start;" \
 "    word-wrap: break-word;" \
@@ -101,7 +103,7 @@
 "            Big Mikey O" \
 "        </button>" \
 "    </div-->" \
-"    <div class=reorg>" \
+"    <!--div class=reorg>" \
 "        <button class=\"turnon color2\" type=\"button\" " \
 "onclick=\"lightSwitch(2, true)\">" \
 "            Stephanie I" \
@@ -110,7 +112,7 @@
 "onclick=\"lightSwitch(2, false)\">" \
 "            Stephanie O" \
 "        </button>" \
-"    </div>" \
+"    </div-->" \
 "    <div class=\"reorg\">" \
 "        <input type=\"range\" min=\"0\" max=\"100\" value=\"50\" " \
 "class=\"slider color3\" id=\"light3_dimmer\" onchange=\"lightDim(3)\">" \
