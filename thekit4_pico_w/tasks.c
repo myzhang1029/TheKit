@@ -112,6 +112,7 @@ static void do_send_http(const char *name, const ip_addr_t *ipaddr, void *cb_arg
     cyw43_arch_lwip_begin();
     struct tcp_pcb *conn = tcp_new_ip_type(IP_GET_TYPE(ipaddr));
     cyw43_arch_lwip_end();
+    printf("In do_send_http for %s; data=%s\n", name, req_data->content);
     // To be closed by connect_cb
     req_data->conn = conn;
     if (conn == NULL) {
@@ -177,9 +178,11 @@ static bool send_http_request_dns(const char *hostname, const char *path, uint16
 static bool send_ddns(void) {
     char uri[DDNS_URI_BUFSIZE];
     char addr[IPADDR_STRLEN_MAX];
-    assert(ipaddr_ntoa_r(&WIFI_NETIF.ip_addr, addr, IPADDR_STRLEN_MAX));
-    snprintf(uri, DDNS_URI_BUFSIZE, DDNS_URI, DDNS_HOSTNAME, DDNS_KEY, addr);
-    puts("Sending DDNS");
+    // For some reason the return value is not always `&addr[0]`
+    char *ipaddr = ipaddr_ntoa_r(&WIFI_NETIF.ip_addr, addr, sizeof(addr));
+    assert(ipaddr);
+    snprintf(uri, DDNS_URI_BUFSIZE, DDNS_URI, DDNS_HOSTNAME, DDNS_KEY, ipaddr);
+    printf("Sending DDNS, addr=%s\n", ipaddr);
     bool result = send_http_request_dns(DDNS_HOST, uri, HTTP_DEFAULT_PORT, true);
     return result;
 }
