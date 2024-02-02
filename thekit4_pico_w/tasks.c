@@ -20,6 +20,7 @@
 #include "thekit4_pico_w.h"
 
 #include "lwip/dns.h"
+#include "lwip/ip.h"
 #include "lwip/pbuf.h"
 #include "lwip/tcp.h"
 
@@ -103,22 +104,26 @@ finally:
 static void do_send_http(const char *name, const ip_addr_t *ipaddr, void *cb_arg) {
     struct http_request_data *req_data = (struct http_request_data *)cb_arg;
     err_t err;
+
+    // Caller should guarantee this
     assert(req_data != NULL);
+    printf("In do_send_http for %s; data=%s\n", name, req_data->content);
     if (ipaddr == NULL) {
         puts("DNS gave no result");
         goto fail;
     }
+
     // `do_send_http` may be called by non-callback when DNS return cached results
     cyw43_arch_lwip_begin();
     struct tcp_pcb *conn = tcp_new_ip_type(IP_GET_TYPE(ipaddr));
     cyw43_arch_lwip_end();
-    printf("In do_send_http for %s; data=%s\n", name, req_data->content);
     // To be closed by connect_cb
-    req_data->conn = conn;
     if (conn == NULL) {
         puts("Cannot create TCP PCB");
         goto fail;
     }
+    req_data->conn = conn;
+
     cyw43_arch_lwip_begin();
     tcp_arg(conn, req_data);
     err = tcp_connect(conn, ipaddr, req_data->port, tcp_connect_cb);
@@ -179,7 +184,14 @@ static bool send_ddns(void) {
     char uri[DDNS_URI_BUFSIZE];
     char addr[IPADDR_STRLEN_MAX];
     // For some reason the return value is not always `&addr[0]`
-    char *ipaddr = ipaddr_ntoa_r(&WIFI_NETIF.ip_addr, addr, sizeof(addr));
+    char *ipaddr;
+    const ip_addr_t *ip = &WIFI_NETIF.ip_addr;
+    if (ip_addr_isany(ip)) {
+        puts("No IP address yet, skipping DDNS");
+        return false;
+    }
+    ipaddr = ipaddr_ntoa_r(ip, addr, sizeof(addr));
+    // This has no reason to fail
     assert(ipaddr);
     snprintf(uri, DDNS_URI_BUFSIZE, DDNS_URI, DDNS_HOSTNAME, DDNS_KEY, ipaddr);
     printf("Sending DDNS, addr=%s\n", ipaddr);
@@ -208,13 +220,15 @@ bool tasks_check_run(void) {
     if (absolute_time_diff_us(get_absolute_time(), next_task_time) < 0) {
         bool result = true;
 #if ENABLE_DDNS
-        result &= send_ddns();
+        result = send_ddns();
+        if (!result)
+            puts("DDNS task failed");
 #endif
 #if ENABLE_TEMPERATURE_SENSOR
-        result &= send_temperature();
-#endif
+        result = send_temperature();
         if (!result)
-            puts("Tasks failed");
+            puts("Temperature task failed");
+#endif
         next_task_time = make_timeout_time_ms(TASKS_INTERVAL_MS);
         return result;
     }

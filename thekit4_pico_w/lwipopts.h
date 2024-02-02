@@ -42,7 +42,7 @@
 #define LWIP_DHCP                   1
 #define LWIP_IPV4                   1
 // Seems that IPv6 support is not complete. TODO
-#define LWIP_IPV6                   0
+#define LWIP_IPV6                   1
 #define LWIP_IGMP                   1
 #define LWIP_TCP                    1
 #define LWIP_UDP                    1
@@ -60,6 +60,7 @@
 #define LWIP_STATS                  1
 #define LWIP_STATS_DISPLAY          1
 #else
+#define LWIP_NOASSERT               1
 #define ETHARP_DEBUG                LWIP_DBG_OFF
 #define NETIF_DEBUG                 LWIP_DBG_OFF
 #define PBUF_DEBUG                  LWIP_DBG_OFF
