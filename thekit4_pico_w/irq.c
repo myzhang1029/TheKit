@@ -43,7 +43,6 @@ static void light_toggle(void) {
 #endif
 
 #if ENABLE_GPS
-
 static void gps_update_rtc(void) {
     time_t t;
     timestamp_t age;
@@ -58,7 +57,7 @@ static void gps_update_rtc(void) {
         // Reject if the previous time update happened more than 1 second ago
         return;
     }
-    // This is stratum 0
+    // GPS itself is stratum 0
     update_rtc(t, 0);
 }
 #endif

@@ -31,12 +31,10 @@
 typedef u32_t uint32_t;
 
 struct ntp_client {
-    struct ntp_client_current_request {
-        bool in_progress;
-        ip_addr_t server_address;
-        struct udp_pcb *pcb;
-        alarm_id_t resend_alarm;
-    } req;
+    bool in_progress;
+    ip_addr_t server_address;
+    struct udp_pcb *pcb;
+    alarm_id_t timeout_alarm;
 };
 
 /// HTTP server. The entire structure exists throughout the program

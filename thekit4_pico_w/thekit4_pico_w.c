@@ -32,7 +32,9 @@
 #endif
 
 static bool has_cyw43 = false;
+#if ENABLE_NTP
 static struct ntp_client ntp_state;
+#endif
 static struct http_server http_state;
 
 static void init() {

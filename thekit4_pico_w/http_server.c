@@ -192,12 +192,8 @@ static bool http_req_check_parse(struct http_server_conn *conn) {
         timestamp_t gps_age = 0;
         bool gps_location_valid = false;
 #endif
-#if ENABLE_NTP || ENABLE_GPS
         // defined in ntp.c
         extern uint8_t ntp_stratum;
-#else
-        uint8_t ntp_stratum = 16;
-#endif
         datetime_t dt;
         if (!rtc_get_datetime(&dt)) {
             dt.year = 0;

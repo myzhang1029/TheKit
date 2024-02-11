@@ -19,6 +19,11 @@
 #include "config.h"
 #include "thekit4_pico_w.h"
 
+#include "hardware/rtc.h"
+#if ENABLE_WATCHDOG
+#include "hardware/watchdog.h"
+#endif
+
 #include "lwip/dns.h"
 #include "lwip/ip.h"
 #include "lwip/pbuf.h"
@@ -211,6 +216,27 @@ static bool send_temperature(void) {
 }
 #endif
 
+#if ENABLE_LIGHT
+// Sometimes for some reason the RTC alarm is not triggered
+// so we constantly renew the alarm
+static bool renew_light_alarm(void) {
+    extern uint8_t ntp_stratum;
+    datetime_t dt;
+    if (ntp_stratum == 16) {
+        puts("No NTP sync yet, skipping light alarm");
+        return false;
+    }
+    if (!rtc_get_datetime(&dt)) {
+        puts("RTC not running, skipping light alarm");
+        return false;
+    }
+    puts("Renewing light alarm");
+    // Note that this function alters `dt`
+    light_register_next_alarm(&dt);
+    return true;
+}
+#endif
+
 void tasks_init(void) {
     dns_init();
     next_task_time = get_absolute_time();
@@ -224,10 +250,21 @@ bool tasks_check_run(void) {
         if (!result)
             puts("DDNS task failed");
 #endif
+#if ENABLE_WATCHDOG
+        watchdog_update();
+#endif
 #if ENABLE_TEMPERATURE_SENSOR
         result = send_temperature();
         if (!result)
             puts("Temperature task failed");
+#endif
+#if ENABLE_WATCHDOG
+        watchdog_update();
+#endif
+#if ENABLE_LIGHT
+        result = renew_light_alarm();
+        if (!result)
+            puts("Light alarm task failed");
 #endif
         next_task_time = make_timeout_time_ms(TASKS_INTERVAL_MS);
         return result;

@@ -33,11 +33,12 @@
 #include "lwip/pbuf.h"
 #include "lwip/udp.h"
 
+// Our current position in the stratum system
+// used in http_server.c and tasks.c
+// It remains 16 if NTP nor GPS is enabled
+volatile uint8_t ntp_stratum = 16;
 
 #if ENABLE_NTP || ENABLE_GPS
-// Our current position in the stratum system
-// used in http_server.c
-volatile uint8_t ntp_stratum = 16;
 static volatile absolute_time_t next_sync_time;
 
 // We should allow calling this from an ISR
@@ -59,10 +60,6 @@ void update_rtc(time_t result, uint8_t stratum) {
         // So that NTP is not run when we have GPS time
         next_sync_time = make_timeout_time_ms(NTP_INTERVAL_MS);
     }
-#if ENABLE_LIGHT
-    // Note that this function alters `dt`
-    light_register_next_alarm(&dt);
-#endif
 }
 #endif
 
@@ -72,43 +69,45 @@ static const uint16_t NTP_MSG_LEN = 48;
 // Seconds between 1 Jan 1900 and 1 Jan 1970
 static const uint32_t NTP_DELTA = 2208988800;
 // Time to wait in case UDP requests are lost
-static const uint32_t UDP_TIMEOUT_TIME_MS = 10 * 1000;
+static const uint32_t UDP_TIMEOUT_TIME_MS = 5 * 1000;
 
 /// Close this request
-static void ntp_req_close(struct ntp_client_current_request *req) {
-    if (!req)
+static void ntp_req_close(struct ntp_client *state) {
+    if (!state)
         return;
-    if (req->pcb) {
-        cyw43_arch_lwip_begin();
-        udp_remove(req->pcb);
-        cyw43_arch_lwip_end();
-        req->pcb = NULL;
-    }
-    if (req->resend_alarm > 0) {
+    // There is actually a race condition of someone calling this function
+    // when the alarm fires, but it's not a big deal
+    if (state->timeout_alarm > 0) {
         // We finished, so cancel it
-        cancel_alarm(req->resend_alarm);
-        req->resend_alarm = 0;
+        cancel_alarm(state->timeout_alarm);
+        state->timeout_alarm = 0;
     }
-    req->in_progress = false;
+    if (state->pcb) {
+        cyw43_arch_lwip_begin();
+        udp_remove(state->pcb);
+        cyw43_arch_lwip_end();
+        state->pcb = NULL;
+    }
+    state->in_progress = false;
 }
 
 static int64_t ntp_timeout_alarm_cb(alarm_id_t id, void *user_data)
 {
-    struct ntp_client_current_request *req = (struct ntp_client_current_request *)user_data;
+    struct ntp_client *state = (struct ntp_client *)user_data;
     puts("NTP request timed out");
-    ntp_req_close(req);
+    ntp_req_close(state);
     return 0;
 }
 
 // NTP data received
 static void ntp_recv_cb(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port) {
-    struct ntp_client_current_request *req = (struct ntp_client_current_request *)arg;
+    struct ntp_client *state = (struct ntp_client *)arg;
     cyw43_arch_lwip_check();
     uint8_t mode = pbuf_get_at(p, 0) & 0x7;
     uint8_t stratum = pbuf_get_at(p, 1);
 
     // Check the result
-    if (ip_addr_cmp(addr, &req->server_address) && port == NTP_PORT && p->tot_len == NTP_MSG_LEN &&
+    if (ip_addr_cmp(addr, &state->server_address) && port == NTP_PORT && p->tot_len == NTP_MSG_LEN &&
         mode == 0x4 && stratum != 0) {
         uint8_t seconds_buf[4] = {0};
         pbuf_copy_partial(p, seconds_buf, sizeof(seconds_buf), 40);
@@ -119,27 +118,39 @@ static void ntp_recv_cb(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip
     } else {
         puts("Invalid NTP response");
     }
-    ntp_req_close(req);
+    ntp_req_close(state);
     pbuf_free(p);
 }
 
 // Make an NTP request
 static void do_send_ntp_request(const char *_hostname, const ip_addr_t *ipaddr, void *arg) {
-    struct ntp_client_current_request *req = (struct ntp_client_current_request *)arg;
+    struct ntp_client *state = (struct ntp_client *)arg;
     if (ipaddr) {
-        req->server_address = *ipaddr;
+        state->server_address = *ipaddr;
         printf("NTP address %s\n", ipaddr_ntoa(ipaddr));
     }
     else {
         puts("NTP DNS request failed");
-        ntp_req_close(req);
+        ntp_req_close(state);
+        return;
     }
     cyw43_arch_lwip_begin();
+    // Create a new UDP PCB structure. That this function is called
+    // should be enough evidence that we are the only one working on
+    // the `state` structure
+    state->pcb = udp_new_ip_type(IPADDR_TYPE_ANY);
+    if (!state->pcb) {
+        cyw43_arch_lwip_end();
+        puts("Failed to create pcb");
+        ntp_req_close(state);
+        return;
+    }
+    udp_recv(state->pcb, ntp_recv_cb, state);
     struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, NTP_MSG_LEN, PBUF_RAM);
     uint8_t *payload = (uint8_t *) p->payload;
     memset(payload, 0, NTP_MSG_LEN);
     payload[0] = 0x1b;
-    udp_sendto(req->pcb, p, &req->server_address, NTP_PORT);
+    udp_sendto(state->pcb, p, &state->server_address, NTP_PORT);
     pbuf_free(p);
     cyw43_arch_lwip_end();
 }
@@ -149,9 +160,9 @@ bool ntp_client_init(struct ntp_client *state) {
     if (!state)
         return false;
     // Meaningful init values
-    state->req.in_progress = false;
-    state->req.pcb = NULL;
-    state->req.resend_alarm = 0;
+    state->in_progress = false;
+    state->pcb = NULL;
+    state->timeout_alarm = 0;
     // So that next check_run is triggered
     next_sync_time = get_absolute_time();
     return true;
@@ -161,41 +172,46 @@ bool ntp_client_init(struct ntp_client *state) {
 void ntp_client_check_run(struct ntp_client *state) {
     if (!state)
         return;
-    struct ntp_client_current_request *req = &state->req;
     // `state` is zero-inited so it will always fire on the first time
-    // If GPS sync succeeded, `next_sync_time` should be set to a newer value,
-    // so this branch will not be taken
-    if (absolute_time_diff_us(get_absolute_time(), next_sync_time) < 0 && !req->in_progress) {
-        // Initialize a NTP sync
-        req->in_progress = true;
-        cyw43_arch_lwip_begin();
-        req->pcb = udp_new_ip_type(IPADDR_TYPE_ANY);
-        if (!req->pcb) {
-            cyw43_arch_lwip_end();
-            puts("Failed to create pcb");
-            req->in_progress = false;
-            return;
-        }
-        udp_recv(req->pcb, ntp_recv_cb, req);
-
-        // Set alarm to close the connection in case UDP requests are lost
-        req->resend_alarm = add_alarm_in_ms(UDP_TIMEOUT_TIME_MS, ntp_timeout_alarm_cb, req, true);
-
-        int err = dns_gethostbyname(NTP_SERVER, &req->server_address, do_send_ntp_request, req);
-        cyw43_arch_lwip_end();
-
-        if (err == ERR_OK) {
-            // Cached result
-            do_send_ntp_request(NTP_SERVER, &req->server_address, req);
-        } else if (err != ERR_INPROGRESS) { // ERR_INPROGRESS means expect a callback
-            puts("DNS request failed");
-            req->pcb = NULL;
-            // Now calling `req_close` is safe because it does not call `udp_remove` on NULL
-            ntp_req_close(req);
-        }
-        // No matter the result, set the next sync time to be in the future
-        next_sync_time = make_timeout_time_ms(NTP_INTERVAL_MS);
+    if (absolute_time_diff_us(get_absolute_time(), next_sync_time) >= 0)
+        // Not time to sync yet
+        // If GPS sync succeeded, `next_sync_time` should be set to a newer value,
+        // and this branch will be taken
+        return;
+    if (state->in_progress) {
+        puts("Skipping NTP request, one is already in progress");
+        return;
     }
+
+    // Set alarm to close the connection in case UDP requests are lost
+    alarm_id_t timeout_alarm = add_alarm_in_ms(UDP_TIMEOUT_TIME_MS, ntp_timeout_alarm_cb, state, true);
+    if (timeout_alarm < 0) {
+        puts("Failed to set timeout alarm, aborting NTP request");
+        return;
+    }
+    state->timeout_alarm = timeout_alarm;
+
+    // Now we actually do the UDP stuff
+    // Mark this before actually calling any lwIP functions,
+    // so we don't overwrite stuff and cause a memory leak
+    state->in_progress = true;
+    cyw43_arch_lwip_begin();
+    int err = dns_gethostbyname(NTP_SERVER, &state->server_address, do_send_ntp_request, state);
+    cyw43_arch_lwip_end();
+
+    if (err == ERR_OK) {
+        // Cached result
+        do_send_ntp_request(NTP_SERVER, &state->server_address, state);
+    } else if (err != ERR_INPROGRESS) { // ERR_INPROGRESS means expect a callback
+        puts("DNS request for NTP failed");
+        // 2024-02-11 I don't think this is necessary, originally added
+        // in myzhang1029/codes@3066e3d
+        // state->pcb = NULL;
+        // // Now calling `req_close` is safe because it does not call `udp_remove` on NULL
+        ntp_req_close(state);
+    }
+    // No matter the result, set the next sync time to be in the future
+    next_sync_time = make_timeout_time_ms(NTP_INTERVAL_MS);
 }
 
 #endif
