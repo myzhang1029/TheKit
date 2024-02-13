@@ -30,6 +30,8 @@
 #include "lwip/tcp.h"
 
 #define HTTP_DEFAULT_PORT 80
+static const char *REQUEST_FMT = "GET %s HTTP/1.0\r\n"
+    "Host: %s\r\n\r\n";
 
 struct http_request_data {
     char *content;
@@ -39,10 +41,8 @@ struct http_request_data {
     struct tcp_pcb *conn;
 };
 
-absolute_time_t next_task_time;
-
-static const char *REQUEST_FMT = "GET %s HTTP/1.0\r\n"
-    "Host: %s\r\n\r\n";
+// Marker: static variable
+static absolute_time_t next_task_time;
 
 
 static err_t http_client_close(struct tcp_pcb *conn, struct tcp_pcb *tpcb) {

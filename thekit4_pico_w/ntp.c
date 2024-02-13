@@ -39,6 +39,7 @@
 volatile uint8_t ntp_stratum = 16;
 
 #if ENABLE_NTP || ENABLE_GPS
+// Marker: static variable
 static volatile absolute_time_t next_sync_time;
 
 // We should allow calling this from an ISR
@@ -179,7 +180,7 @@ void ntp_client_check_run(struct ntp_client *state) {
         // and this branch will be taken
         return;
     if (state->in_progress) {
-        puts("Skipping NTP request, one is already in progress");
+        puts("Skipping NTP request, another is still in progress");
         return;
     }
 

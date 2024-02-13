@@ -349,6 +349,7 @@ bool http_server_open(struct http_server *state) {
 
     err_t err = tcp_bind(pcb, NULL, HTTP_PORT);
     if (err) {
+        tcp_close(pcb);
         cyw43_arch_lwip_end();
         puts("Failed to bind to port");
         return false;
@@ -356,9 +357,9 @@ bool http_server_open(struct http_server *state) {
 
     state->server_pcb = tcp_listen_with_backlog(pcb, 1);
     if (!state->server_pcb) {
+        tcp_close(pcb);
         cyw43_arch_lwip_end();
         puts("Failed to listen");
-        http_server_close(state);
         return false;
     }
 

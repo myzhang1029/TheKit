@@ -28,7 +28,7 @@
 #include "hardware/rtc.h"
 
 #if ENABLE_GPS
-
+// Marker: static variable
 static struct gps_status gps_status = GPS_STATUS_INIT;
 
 void gps_init(void) {

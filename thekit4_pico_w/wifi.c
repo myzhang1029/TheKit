@@ -38,10 +38,13 @@ static void register_mdns(void) {
 }
 
 static void print_ip(void) {
+    cyw43_arch_lwip_begin();
     printf("IP Address: %s\n", ipaddr_ntoa(&WIFI_NETIF.ip_addr));
+    cyw43_arch_lwip_end();
 }
 
 static void print_and_check_dns(void) {
+    cyw43_arch_lwip_begin();
     const ip_addr_t *pdns = dns_getserver(0);
     printf("DNS Server: %s\n", ipaddr_ntoa(pdns));
     if (FORCE_DEFAULT_DNS || ip_addr_eq(pdns, &ip_addr_any)) {
@@ -50,6 +53,7 @@ static void print_and_check_dns(void) {
         ipaddr_aton(DEFAULT_DNS, &default_dns);
         dns_setserver(0, &default_dns);
     }
+    cyw43_arch_lwip_end();
 }
 
 /// Connect to Wi-Fi

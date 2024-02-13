@@ -25,18 +25,21 @@
 #include "hardware/rtc.h"
 
 #if ENABLE_LIGHT
-static volatile uint32_t last_button1_irq_timestamp = 0;
-// defined in light.c
-extern volatile uint16_t current_pwm_level;
-
 // For gpio irq
 static void light_toggle(void) {
+    // defined in light.c
+    extern volatile uint16_t current_pwm_level;
+    extern volatile uint16_t current_pwm_level_complement;
+    // Marker: static variable
     // Debounce
+    static volatile uint32_t last_button1_irq_timestamp = 0;
     uint32_t irq_timestamp = time_us_32();
     if (irq_timestamp - last_button1_irq_timestamp < 8000)
         return;
     last_button1_irq_timestamp = irq_timestamp;
-    current_pwm_level = current_pwm_level ? 0 : WRAP;
+    uint16_t new_level = current_pwm_level ? 0 : WRAP;
+    current_pwm_level = new_level;
+    current_pwm_level_complement = ~new_level;
     pwm_set_gpio_level(LIGHT_PIN, current_pwm_level);
     puts("Toggling");
 }

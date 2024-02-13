@@ -31,7 +31,6 @@
 #include "hardware/watchdog.h"
 #endif
 
-static bool has_cyw43 = false;
 #if ENABLE_NTP
 static struct ntp_client ntp_state;
 #endif
@@ -39,6 +38,11 @@ static struct http_server http_state;
 
 static void init() {
     stdio_init_all();
+
+#if ENABLE_WATCHDOG
+    if (watchdog_caused_reboot())
+        puts("Rebooted by watchdog");
+#endif
 
     rtc_init();
 #if ENABLE_LIGHT
@@ -52,14 +56,17 @@ static void init() {
 #endif
     irq_init();
 
-    if (cyw43_arch_init() != 0) {
-        puts("WARNING: Cannot init CYW43");
-        return;
-    }
-    has_cyw43 = true;
+#if ENABLE_WATCHDOG
+    // Needs to be larger than `wifi_connect`'s timeout
+    watchdog_enable(60000, 1);
+#endif
+
+    if (cyw43_arch_init() != 0)
+        panic("ERROR: Cannot init CYW43");
     // Depends on cyw43
     cyw43_arch_enable_sta_mode();
     wifi_connect();
+
 #if ENABLE_NTP
     if (!ntp_client_init(&ntp_state))
         puts("WARNING: Cannot init NTP client");
@@ -67,12 +74,6 @@ static void init() {
     // Start HTTP server
     if (!http_server_open(&http_state))
         puts("WARNING: Cannot open HTTP server");
-
-#if ENABLE_WATCHDOG
-    // Init watchdog last so it doesn't interrupt other steps
-    // Needs to be larger than `wifi_connect`'s timeout
-    watchdog_enable(60000, 1);
-#endif
 
     puts("Successfully initialized everything");
 
@@ -89,7 +90,7 @@ int main() {
 #if ENABLE_WATCHDOG
         watchdog_update();
 #endif
-        if (has_cyw43 && wifi_state != CYW43_LINK_JOIN) {
+        if (wifi_state != CYW43_LINK_JOIN) {
             printf("Wi-Fi link status is %d, reconnecting\n", wifi_state);
             wifi_connect();
         }
@@ -123,6 +124,5 @@ int main() {
 #endif
     }
     http_server_close(&http_state);
-    if (has_cyw43)
-        cyw43_arch_deinit();
+    cyw43_arch_deinit();
 }

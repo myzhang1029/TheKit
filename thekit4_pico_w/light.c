@@ -28,20 +28,25 @@
 #include "hardware/rtc.h"
 
 #if ENABLE_LIGHT
-
-/// Initialize everything we need
-/// used in irq.c and http_server.c
-volatile uint16_t current_pwm_level = 0;
+// used in irq.c and http_server.c
+volatile uint16_t __uninitialized_ram(current_pwm_level);
+// This is always the bit complement of `current_pwm_level` when
+// `current_pwm_level` is initialized. Used as a form of checksum
+volatile uint16_t __uninitialized_ram(current_pwm_level_complement);
+#define SET_PWM_LEVEL(level) do { \
+    current_pwm_level = level; \
+    current_pwm_level_complement = ~level; \
+} while (0)
 
 // For rtc alarm
 static void light_on(void) {
-    current_pwm_level = WRAP;
+    SET_PWM_LEVEL(WRAP);
     pwm_set_gpio_level(LIGHT_PIN, current_pwm_level);
 }
 
 // For rtc alarm
 static void light_off(void) {
-    current_pwm_level = 0;
+    SET_PWM_LEVEL(0);
     pwm_set_gpio_level(LIGHT_PIN, current_pwm_level);
 }
 
@@ -50,6 +55,11 @@ void light_init(void) {
     gpio_set_function(LIGHT_PIN, GPIO_FUNC_PWM);
 
     // Button is set up in irq.c
+
+    // Check if the state is valid
+    if (current_pwm_level & current_pwm_level_complement)
+        // Invalid state, reset to default
+        SET_PWM_LEVEL(0);
 
     // PWM
     uint light_slice_num = pwm_gpio_to_slice_num(LIGHT_PIN);
@@ -81,7 +91,8 @@ static uint16_t intensity_to_dcycle(float intensity) {
 
 /// Takes a percentage perceived intensity and dim the light
 void light_dim(float intensity) {
-    current_pwm_level = intensity_to_dcycle(intensity);
+    uint16_t target = intensity_to_dcycle(intensity);
+    SET_PWM_LEVEL(target);
     printf("Dimming to %d\n", (int)current_pwm_level);
     pwm_set_gpio_level(LIGHT_PIN, current_pwm_level);
 }
