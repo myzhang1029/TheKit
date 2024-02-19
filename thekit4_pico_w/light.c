@@ -21,6 +21,7 @@
 
 #include <math.h>
 
+#include "pico/platform.h"
 #include "pico/stdlib.h"
 #include "pico/util/datetime.h"
 

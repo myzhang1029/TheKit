@@ -31,10 +31,12 @@
 typedef u32_t uint32_t;
 
 struct ntp_client {
-    bool in_progress;
     ip_addr_t server_address;
     struct udp_pcb *pcb;
-    alarm_id_t timeout_alarm;
+    bool in_progress;
+    // If `in_progress` is true, this is the time when the request will be
+    // considered lost.
+    absolute_time_t deadline;
 };
 
 /// HTTP server. The entire structure exists throughout the program

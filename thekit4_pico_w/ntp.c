@@ -76,13 +76,6 @@ static const uint32_t UDP_TIMEOUT_TIME_MS = 5 * 1000;
 static void ntp_req_close(struct ntp_client *state) {
     if (!state)
         return;
-    // There is actually a race condition of someone calling this function
-    // when the alarm fires, but it's not a big deal
-    if (state->timeout_alarm > 0) {
-        // We finished, so cancel it
-        cancel_alarm(state->timeout_alarm);
-        state->timeout_alarm = 0;
-    }
     if (state->pcb) {
         cyw43_arch_lwip_begin();
         udp_remove(state->pcb);
@@ -90,14 +83,6 @@ static void ntp_req_close(struct ntp_client *state) {
         state->pcb = NULL;
     }
     state->in_progress = false;
-}
-
-static int64_t ntp_timeout_alarm_cb(alarm_id_t id, void *user_data)
-{
-    struct ntp_client *state = (struct ntp_client *)user_data;
-    puts("NTP request timed out");
-    ntp_req_close(state);
-    return 0;
 }
 
 // NTP data received
@@ -163,7 +148,6 @@ bool ntp_client_init(struct ntp_client *state) {
     // Meaningful init values
     state->in_progress = false;
     state->pcb = NULL;
-    state->timeout_alarm = 0;
     // So that next check_run is triggered
     next_sync_time = get_absolute_time();
     return true;
@@ -173,24 +157,26 @@ bool ntp_client_init(struct ntp_client *state) {
 void ntp_client_check_run(struct ntp_client *state) {
     if (!state)
         return;
+
+    // Check for timed-out requests
+    if (state->in_progress && absolute_time_diff_us(get_absolute_time(), state->deadline) < 0) {
+        puts("NTP request timed out");
+        ntp_req_close(state);
+    }
     // `state` is zero-inited so it will always fire on the first time
     if (absolute_time_diff_us(get_absolute_time(), next_sync_time) >= 0)
         // Not time to sync yet
         // If GPS sync succeeded, `next_sync_time` should be set to a newer value,
         // and this branch will be taken
         return;
+
     if (state->in_progress) {
+        // Timeout is already checked for
         puts("Skipping NTP request, another is still in progress");
         return;
     }
-
-    // Set alarm to close the connection in case UDP requests are lost
-    alarm_id_t timeout_alarm = add_alarm_in_ms(UDP_TIMEOUT_TIME_MS, ntp_timeout_alarm_cb, state, true);
-    if (timeout_alarm < 0) {
-        puts("Failed to set timeout alarm, aborting NTP request");
-        return;
-    }
-    state->timeout_alarm = timeout_alarm;
+    // Time to close the connection in case UDP requests are lost
+    state->deadline = make_timeout_time_ms(UDP_TIMEOUT_TIME_MS);
 
     // Now we actually do the UDP stuff
     // Mark this before actually calling any lwIP functions,

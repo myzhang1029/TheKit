@@ -1,9 +1,11 @@
+#include "thekit4_pico_w.h"
+
 #include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
 
-#include "lwip/ip_addr.h"
+#include "hardware/gpio.h"
 
-#include "thekit4_pico_w.h"
+#include "lwip/ip_addr.h"
 
 // Define WOLFRAM_DATABIN_ID, DDNS_HOSTNAME, DDNS_KEY, wifi_config, HOSTNAME
 #include "private_config.h"
