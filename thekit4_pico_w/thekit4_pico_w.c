@@ -1,7 +1,7 @@
 /* The entire The Kit on Raspberry Pi Pico W */
 /*
  *  thekit4_pico_w.c
- *  Copyright (C) 2022-2023 Zhang Maiyun <me@maiyun.me>
+ *  Copyright (C) 2022-2024 Zhang Maiyun <me@maiyun.me>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ static struct http_server http_state;
 
 static void init() {
     stdio_init_all();
+    sleep_ms(1000);
 
 #if ENABLE_WATCHDOG
     if (watchdog_caused_reboot())

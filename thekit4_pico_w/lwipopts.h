@@ -57,6 +57,7 @@
 #define LWIP_NUM_NETIF_CLIENT_DATA  (LWIP_MDNS_RESPONDER)
 
 #ifndef NDEBUG
+#define LWIP_NOASSERT               0
 #define LWIP_DEBUG                  1
 #define LWIP_STATS                  1
 #define LWIP_STATS_DISPLAY          1
