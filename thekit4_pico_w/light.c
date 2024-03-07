@@ -29,26 +29,39 @@
 #include "hardware/rtc.h"
 
 #if ENABLE_LIGHT
-// used in irq.c and http_server.c
+// used in http_server.c. Not supposed to be modified there
 volatile uint16_t __uninitialized_ram(current_pwm_level);
 // This is always the bit complement of `current_pwm_level` when
 // `current_pwm_level` is initialized. Used as a form of checksum
-volatile uint16_t __uninitialized_ram(current_pwm_level_complement);
+static volatile uint16_t __uninitialized_ram(current_pwm_level_complement);
 #define SET_PWM_LEVEL(level) do { \
-    current_pwm_level = level; \
-    current_pwm_level_complement = ~level; \
+    current_pwm_level = (level); \
+    current_pwm_level_complement = ~(level); \
+    pwm_set_gpio_level(LIGHT_PIN, (level)); \
 } while (0)
 
 // For rtc alarm
 static void light_on(void) {
     SET_PWM_LEVEL(WRAP);
-    pwm_set_gpio_level(LIGHT_PIN, current_pwm_level);
 }
 
 // For rtc alarm
 static void light_off(void) {
     SET_PWM_LEVEL(0);
-    pwm_set_gpio_level(LIGHT_PIN, current_pwm_level);
+}
+
+// For gpio irq
+void light_toggle(void) {
+    // Marker: static variable
+    // Debounce
+    static volatile uint32_t last_button1_irq_timestamp = 0;
+    uint32_t irq_timestamp = time_us_32();
+    if (irq_timestamp - last_button1_irq_timestamp < 8000)
+        return;
+    last_button1_irq_timestamp = irq_timestamp;
+    uint16_t new_level = current_pwm_level ? 0 : WRAP;
+    SET_PWM_LEVEL(new_level);
+    puts("Toggling");
 }
 
 void light_init(void) {
@@ -95,7 +108,6 @@ void light_dim(float intensity) {
     uint16_t target = intensity_to_dcycle(intensity);
     SET_PWM_LEVEL(target);
     printf("Dimming to %d\n", (int)current_pwm_level);
-    pwm_set_gpio_level(LIGHT_PIN, current_pwm_level);
 }
 
 static void do_register_alarm(const datetime_t *current, int index) {

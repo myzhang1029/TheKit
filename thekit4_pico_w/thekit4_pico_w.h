@@ -72,6 +72,7 @@ void temperature_init(void);
 float temperature_measure(void);
 
 void light_init(void);
+void light_toggle(void);
 void light_dim(float intensity);
 // Takes the current time to avoid wasting cycles waiting for RTC to be
 // synchronised. Might modify it.

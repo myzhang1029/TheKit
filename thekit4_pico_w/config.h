@@ -35,7 +35,7 @@
 static const uint LIGHT_PIN = 3;
 static const uint BUTTON1_PIN = 18;
 #define BUTTON1_EDGE_TYPE GPIO_IRQ_EDGE_FALL
-// Magic. TODO: Try to reach 1MHz at PWM?
+// Frequency = 125MHz / clockdiv / WRAP, so we are at 125kHz
 static const float clockdiv = 1.;
 // Max duty
 static const uint16_t WRAP = 1000;
