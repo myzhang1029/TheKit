@@ -16,6 +16,30 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+/* This module is designed to be used around a 8-20V LED light.
+ * There are two designs for the surrounding circuit: a buck arrangement and
+ * a boost arrangement. Since Pico runs on USB/5V, the former requires a 20V
+ * supply in front of this part of the circuit.
+ *
+ * Buck: (https://maiyun.me/blog/2022/11/11/Buck-Converter). This design is
+ * easier to implement and almost works with any diode or FET.
+ * N-MOSFET:
+ *   - Connect the gate to LIGHT_PIN
+ *   - Connect the source to GND
+ *   - Connect the drain to the LED, a capacitor, and the anode of a diode
+ *   - Connect the cathode of the diode to the 20V supply and one end of an
+ *     inductor of about 40uH, whose other end is connected to the light and
+ *     the capacitor
+ *
+ * Boost: (https://maiyun.me/blog/2024/03/07/Boost-Converter).
+ * I got best results with an IRL520N and a 30uH inductor from an
+ * old power supply.
+ *
+ * Now connect the drain to the 5V rail via the inductor. The drain also
+ * goes to the light via a diode (in this direction).
+ * To form a closed loop (software TODO), divide the output: 39k and 6.8k.
+ */
+
 #include "config.h"
 #include "thekit4_pico_w.h"
 
@@ -40,14 +64,37 @@ static volatile uint16_t __uninitialized_ram(current_pwm_level_complement);
     pwm_set_gpio_level(LIGHT_PIN, (level)); \
 } while (0)
 
+/* constexpr */
+static uint16_t intensity_to_dcycle(float intensity) {
+#if LIGHT_IS_BUCK
+    float real_intensity = exp(intensity * log(101.) / 100.) - 1.;
+    float voltage = real_intensity * (19.2 - 7.845) / 100. + 7.845;
+    if (7.845 < voltage && voltage <= 9.275)
+        return (uint16_t)((-7.664 + voltage) * 0.281970 * WRAP);
+    if (9.275 < voltage && voltage <= 13.75)
+        return (uint16_t)((6.959 + voltage) * 0.026520 * WRAP);
+    if (13.75 < voltage && voltage <= 16.88)
+        return (uint16_t)((-2.529 + voltage) * 0.049485 * WRAP);
+    if (16.88 < voltage)
+    {
+        uint16_t r = (uint16_t)((26.90 + voltage) * 0.021692 * WRAP);
+        return r > WRAP ? WRAP : r;
+    }
+    return 0;
+#else
+    // Limit max duty so that the inductor doesn't complain
+    return (uint16_t)(intensity * 0.0053 * WRAP);
+#endif
+}
+
 // For rtc alarm
 static void light_on(void) {
-    SET_PWM_LEVEL(WRAP);
+    SET_PWM_LEVEL(intensity_to_dcycle(100));
 }
 
 // For rtc alarm
 static void light_off(void) {
-    SET_PWM_LEVEL(0);
+    SET_PWM_LEVEL(intensity_to_dcycle(0));
 }
 
 // For gpio irq
@@ -59,7 +106,7 @@ void light_toggle(void) {
     if (irq_timestamp - last_button1_irq_timestamp < 8000)
         return;
     last_button1_irq_timestamp = irq_timestamp;
-    uint16_t new_level = current_pwm_level ? 0 : WRAP;
+    uint16_t new_level = current_pwm_level ? intensity_to_dcycle(0) : intensity_to_dcycle(100);
     SET_PWM_LEVEL(new_level);
     puts("Toggling");
 }
@@ -84,23 +131,6 @@ void light_init(void) {
     pwm_init(light_slice_num, &config, true);
     pwm_set_gpio_level(LIGHT_PIN, current_pwm_level);
     pwm_set_enabled(light_slice_num, true);
-}
-
-static uint16_t intensity_to_dcycle(float intensity) {
-    float real_intensity = exp(intensity * log(101.) / 100.) - 1.;
-    float voltage = real_intensity * (19.2 - 7.845) / 100. + 7.845;
-    if (7.845 < voltage && voltage <= 9.275)
-        return (uint16_t)((-7.664 + voltage) * 0.281970 * WRAP);
-    if (9.275 < voltage && voltage <= 13.75)
-        return (uint16_t)((6.959 + voltage) * 0.026520 * WRAP);
-    if (13.75 < voltage && voltage <= 16.88)
-        return (uint16_t)((-2.529 + voltage) * 0.049485 * WRAP);
-    if (16.88 < voltage)
-    {
-        uint16_t r = (uint16_t)((26.90 + voltage) * 0.021692 * WRAP);
-        return r > WRAP ? WRAP : r;
-    }
-    return 0;
 }
 
 /// Takes a percentage perceived intensity and dim the light

@@ -39,6 +39,7 @@ static const uint BUTTON1_PIN = 18;
 static const float clockdiv = 1.;
 // Max duty
 static const uint16_t WRAP = 1000;
+
 // Light-based alarms
 // Sort chronologically
 static const struct light_sched_entry light_sched[] = {
