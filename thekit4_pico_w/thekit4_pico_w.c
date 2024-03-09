@@ -26,6 +26,7 @@
 #include "pico/stdlib.h"
 #include "pico/time.h"
 
+#include "hardware/adc.h"
 #include "hardware/rtc.h"
 #if ENABLE_WATCHDOG
 #include "hardware/watchdog.h"
@@ -46,6 +47,9 @@ static void init() {
 #endif
 
     rtc_init();
+    // ADC (before light and temperature)
+    adc_init();
+    adc_gpio_init(ADC_ZERO_PIN);
 #if ENABLE_LIGHT
     light_init();
 #endif

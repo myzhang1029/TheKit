@@ -27,10 +27,7 @@
 #if ENABLE_TEMPERATURE_SENSOR
 
 void temperature_init(void) {
-    // ADC
-    adc_init();
     adc_gpio_init(ADC_TEMP_PIN);
-    adc_gpio_init(ADC_ZERO_PIN);
 }
 
 /// Take a single temperature measurement
@@ -49,3 +46,28 @@ float temperature_measure(void) {
 }
 
 #endif
+
+/// Measure VSYS voltage. See datasheet for details.
+// Maybe I should put this in a separate file
+// This however, does not work on Pico W:
+// Pin 29 is also used for SPICLK to CYW43. We can force a reading by
+// setting Pin 25 high, but that kills the WiFi.
+float vsys_measure(void) {
+    adc_select_input(ADC_ZERO_PIN - 26);
+    uint16_t bias = adc_read();
+    adc_select_input(29 - 26);
+    uint16_t place = adc_read();
+    uint16_t sensed = place - bias;
+    float voltage = (VAref / 4096.00) * sensed;
+    return voltage * 3.0;
+}
+
+/// Measure core temperature. See datasheet for details.
+float temperature_core(void) {
+    adc_set_temp_sensor_enabled(true);
+    adc_select_input(4);
+    uint16_t sensed = adc_read();
+    adc_set_temp_sensor_enabled(false);
+    float voltage = (VAref / 4096.00) * sensed;
+    return 27 - (voltage - 0.706) / 0.001721;
+}

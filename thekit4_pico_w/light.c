@@ -51,6 +51,7 @@
 #include "pico/stdlib.h"
 #include "pico/util/datetime.h"
 
+#include "hardware/adc.h"
 #include "hardware/pwm.h"
 #include "hardware/rtc.h"
 
@@ -66,6 +67,7 @@ static volatile uint16_t __uninitialized_ram(current_pwm_level_complement);
     pwm_set_gpio_level(LIGHT_PIN, (level)); \
 } while (0)
 
+/// Convert a desired light intensity to the actual PWM level
 /* constexpr */
 static uint16_t intensity_to_dcycle(float intensity) {
     float real_intensity = exp(intensity * log(101.) / 100.) - 1.;
@@ -147,6 +149,9 @@ void light_init(void) {
     pwm_init(light_slice_num, &config, true);
     pwm_set_gpio_level(LIGHT_PIN, current_pwm_level);
     pwm_set_enabled(light_slice_num, true);
+
+    // SMPS feedback ADC
+    adc_gpio_init(ADC_SMPS_FB_PIN);
 }
 
 /// Takes a percentage perceived intensity and dim the light
@@ -154,6 +159,17 @@ void light_dim(float intensity) {
     uint16_t target = intensity_to_dcycle(intensity);
     SET_PWM_LEVEL(target);
     printf("Dimming to %d\n", (int)current_pwm_level);
+}
+
+/// Take a single feedback voltage reading
+float light_smps_measure(void) {
+    adc_select_input(ADC_ZERO_PIN - 26);
+    uint16_t bias = adc_read();
+    adc_select_input(ADC_SMPS_FB_PIN - 26);
+    uint16_t place = adc_read();
+    uint16_t sensed = place - bias;
+    float voltage = (VAref / 4096.00) * sensed;
+    return voltage * LIGHT_SMPS_FB_RATIO;
 }
 
 static void do_register_alarm(const datetime_t *current, int index) {

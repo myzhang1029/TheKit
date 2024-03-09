@@ -29,11 +29,18 @@
 #define ENABLE_GPS 1
 #endif
 
+// Zeroing pin for all ADC measurements
+static const uint ADC_ZERO_PIN = 28;
+// LM2020
+static const float VAref = 3.0; // Volts
+
 // Light-related
 #if ENABLE_LIGHT
 // Definitions
 static const uint LIGHT_PIN = 3;
 static const uint BUTTON1_PIN = 18;
+static const uint ADC_SMPS_FB_PIN = 27;
+static const float LIGHT_SMPS_FB_RATIO = 11.0;
 #define BUTTON1_EDGE_TYPE GPIO_IRQ_EDGE_FALL
 // Frequency = 125MHz / clockdiv / WRAP, so we are at 125kHz
 static const float clockdiv = 1.;
@@ -52,12 +59,8 @@ static const struct light_sched_entry light_sched[] = {
 
 // Temperature-related
 #if ENABLE_TEMPERATURE_SENSOR
-// Zeroing pin
-static const uint ADC_ZERO_PIN = 28;
 // Temperature pin
 static const uint ADC_TEMP_PIN = 26;
-// LM2020
-static const float VAref = 3.0; // Volts
 // NTC base resistance
 static const float R0 = 1e4; // Ohm \pm 1%
 // Temperature corresponding to R0

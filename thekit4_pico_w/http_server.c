@@ -164,7 +164,7 @@ static bool http_req_check_parse(struct http_server_conn *conn) {
         // unlikely
         || pbuf_memcmp(conn->received, offset_path, "/get_info\r", 2) == 0) {
         // Max length + nn\r\n\r\n + \0
-        char response[210] = {0};
+        char response[254] = {0};
         size_t length;
 #if ENABLE_TEMPERATURE_SENSOR
         float temperature = temperature_measure();
@@ -172,11 +172,14 @@ static bool http_req_check_parse(struct http_server_conn *conn) {
         // JSON doesn't support NaN
         float temperature = -1024;
 #endif
+        float core_temperature = temperature_core();
 #if ENABLE_LIGHT
         // defined in light.c
         extern uint16_t current_pwm_level;
+        float light_voltage = light_smps_measure();
 #else
         uint16_t current_pwm_level = 0;
+        float light_voltage = 0;
 #endif
 #if ENABLE_GPS
         float lat, lon, alt;
@@ -205,20 +208,27 @@ static bool http_req_check_parse(struct http_server_conn *conn) {
             dt.dotw = 0;
         }
         /* Generate response */
-        length = snprintf(response, 210,
+        length = snprintf(response, 254,
                      "202\r\n\r\n{\"temperature\": %.3f, \"pwm\": %u, "
+                     "\"core_temp\": %.3f, \"light_voltage\": %.2f, "
                      "\"latitude\": %.6f, \"longitude\": %.6f, \"altitude\": %.3f, "
                      "\"datetime\": \"%04u-%02u-%02u %02u:%02u:%02u\", "
                      "\"stratum\": %u, \"gps_age\": %lu, \"gps_valid\": %u}",
-                     temperature, (unsigned)current_pwm_level, lat, lon, alt,
+                     temperature, (unsigned)current_pwm_level,
+                     core_temperature, light_voltage,
+                     lat, lon, alt,
                      dt.year, dt.month, dt.day, dt.hour, dt.min, dt.sec,
                      (unsigned)ntp_stratum, (unsigned long)gps_age, (unsigned)gps_location_valid);
-        snprintf(response, 210, "%u\r\n\r\n{\"temperature\": %.3f, \"pwm\": %u, "
+        snprintf(response, 254, "%u\r\n\r\n{\"temperature\": %.3f, \"pwm\": %u, "
+                "\"core_temp\": %.3f, \"light_voltage\": %.2f, "
                 "\"latitude\": %.6f, \"longitude\": %.6f, \"altitude\": %.3f, "
                 "\"datetime\": \"%04u-%02u-%02u %02u:%02u:%02u\", "
                 "\"stratum\": %u, \"gps_age\": %lu, \"gps_valid\": %u}",
-                 (unsigned)length - 7, temperature, (unsigned)current_pwm_level,
-                 lat, lon, alt, dt.year, dt.month, dt.day, dt.hour, dt.min, dt.sec,
+                 (unsigned)length - 7,
+                 temperature, (unsigned)current_pwm_level,
+                 core_temperature, light_voltage,
+                 lat, lon, alt,
+                 dt.year, dt.month, dt.day, dt.hour, dt.min, dt.sec,
                  (unsigned)ntp_stratum, (unsigned long)gps_age, (unsigned)gps_location_valid);
         http_conn_write(conn, resp_200_pre, sizeof(resp_200_pre) - 1, 0);
         http_conn_write(conn, resp_common, sizeof(resp_common) - 1, 0);

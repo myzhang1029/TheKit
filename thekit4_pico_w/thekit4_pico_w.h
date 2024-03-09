@@ -70,10 +70,13 @@ void irq_init(void);
 
 void temperature_init(void);
 float temperature_measure(void);
+float vsys_measure(void);
+float temperature_core(void);
 
 void light_init(void);
 void light_toggle(void);
 void light_dim(float intensity);
+float light_smps_measure(void);
 // Takes the current time to avoid wasting cycles waiting for RTC to be
 // synchronised. Might modify it.
 void light_register_next_alarm(datetime_t *current);
