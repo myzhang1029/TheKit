@@ -37,7 +37,9 @@
  *
  * Now connect the drain to the 5V rail via the inductor. The drain also
  * goes to the light via a diode (in this direction).
- * To form a closed loop (software TODO), divide the output: 39k and 6.8k.
+ * To form a closed loop (software TODO), divide the output: 68k and 6.8k.
+ * This is calculated at max output = 33V so that the divided voltage is
+ * within ADC range with a 3.00V reference (LM4040).
  */
 
 #include "config.h"
@@ -66,8 +68,8 @@ static volatile uint16_t __uninitialized_ram(current_pwm_level_complement);
 
 /* constexpr */
 static uint16_t intensity_to_dcycle(float intensity) {
-#if LIGHT_IS_BUCK
     float real_intensity = exp(intensity * log(101.) / 100.) - 1.;
+#if LIGHT_IS_BUCK
     float voltage = real_intensity * (19.2 - 7.845) / 100. + 7.845;
     if (7.845 < voltage && voltage <= 9.275)
         return (uint16_t)((-7.664 + voltage) * 0.281970 * WRAP);
@@ -80,11 +82,25 @@ static uint16_t intensity_to_dcycle(float intensity) {
         uint16_t r = (uint16_t)((26.90 + voltage) * 0.021692 * WRAP);
         return r > WRAP ? WRAP : r;
     }
-    return 0;
 #else
-    // Limit max duty so that the inductor doesn't complain
-    return (uint16_t)(intensity * 0.0053 * WRAP);
+    float voltage = real_intensity * (25.0 - 7.936) / 100. + 7.936;
+    if (7.936 < voltage && voltage <= 9.122)
+        return (uint16_t)((-7.900 + voltage) * 0.298954 * WRAP);
+    if (9.122 < voltage && voltage <= 14.874)
+        return (uint16_t)((10.369 + voltage) * 0.018742 * WRAP);
+    if (14.874 < voltage && voltage <= 20.305)
+        return (uint16_t)((32.852 + voltage) * 0.009913 * WRAP);
+    if (20.305 < voltage)
+    {
+        uint16_t r = (uint16_t)((86.950 + voltage) * 0.004913 * WRAP);
+        // Limit max duty so that the inductor doesn't complain
+        // Found by experiment yielding 29V, which is the max these
+        // piecewise functions are fitted to
+        const uint16_t max_duty = 0.576 * WRAP;
+        return r > max_duty ? max_duty : r;
+    }
 #endif
+    return 0;
 }
 
 // For rtc alarm
