@@ -32,10 +32,10 @@
 #include "hardware/watchdog.h"
 #endif
 
+// Marker: static variable
 #if ENABLE_NTP
 static struct ntp_client ntp_state;
 #endif
-static struct http_server http_state;
 
 static void init() {
     stdio_init_all();
@@ -77,57 +77,47 @@ static void init() {
         puts("WARNING: Cannot init NTP client");
 #endif
     // Start HTTP server
-    if (!http_server_open(&http_state))
+    if (!http_server_open())
         puts("WARNING: Cannot open HTTP server");
 
     puts("Successfully initialized everything");
+}
 
-#if ENABLE_TEMPERATURE_SENSOR
-    printf("Temperature: %f\n", temperature_measure());
+void feed_dog() {
+#if ENABLE_WATCHDOG
+    watchdog_update();
 #endif
 }
+
 
 int main() {
     init();
 
     while (1) {
         int wifi_state = cyw43_wifi_link_status(&cyw43_state, CYW43_ITF_STA);
-#if ENABLE_WATCHDOG
-        watchdog_update();
-#endif
+        feed_dog();
         if (wifi_state != CYW43_LINK_JOIN) {
             printf("Wi-Fi link status is %d, reconnecting\n", wifi_state);
             wifi_connect();
+            feed_dog();
         }
-#if ENABLE_WATCHDOG
-        watchdog_update();
-#endif
 #if ENABLE_NTP
         ntp_client_check_run(&ntp_state);
-#endif
-#if ENABLE_WATCHDOG
-        watchdog_update();
-#endif
-        tasks_check_run();
-#if ENABLE_WATCHDOG
-        watchdog_update();
+        feed_dog();
 #endif
 #if ENABLE_GPS
         gps_parse_available();
+        feed_dog();
 #endif
-#if ENABLE_WATCHDOG
-        watchdog_update();
-#endif
+        tasks_check_run();
+        feed_dog();
 #if PICO_CYW43_ARCH_POLL
-        if (has_cyw43)
-            cyw43_arch_poll();
+        cyw43_arch_poll();
 #endif
-#if ENABLE_GPS || PICO_CYW43_ARCH_POLL
-        sleep_ms(1);
-#else
+#if !ENABLE_GPS && !PICO_CYW43_ARCH_POLL
         sleep_ms(100);
 #endif
     }
-    http_server_close(&http_state);
+    http_server_close();
     cyw43_arch_deinit();
 }

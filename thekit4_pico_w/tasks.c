@@ -220,9 +220,8 @@ static bool send_temperature(void) {
 // Sometimes for some reason the RTC alarm is not triggered
 // so we constantly renew the alarm
 static bool renew_light_alarm(void) {
-    extern uint8_t ntp_stratum;
     datetime_t dt;
-    if (ntp_stratum == 16) {
+    if (ntp_get_stratum() == 16) {
         puts("No NTP sync yet, skipping light alarm");
         return false;
     }

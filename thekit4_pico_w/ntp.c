@@ -36,11 +36,16 @@
 // Our current position in the stratum system
 // used in http_server.c and tasks.c
 // It remains 16 if NTP nor GPS is enabled
-volatile uint8_t ntp_stratum = 16;
+// Marker: static variable
+static volatile uint8_t ntp_stratum = 16;
+
+uint8_t ntp_get_stratum(void) {
+    return ntp_stratum;
+}
 
 #if ENABLE_NTP || ENABLE_GPS
 // Marker: static variable
-static volatile absolute_time_t next_sync_time;
+static volatile absolute_time_t sync_expiry;
 
 // We should allow calling this from an ISR
 void update_rtc(time_t result, uint8_t stratum) {
@@ -59,7 +64,7 @@ void update_rtc(time_t result, uint8_t stratum) {
     if (rtc_set_datetime(&dt)) {
         ntp_stratum = stratum + 1;
         // So that NTP is not run when we have GPS time
-        next_sync_time = make_timeout_time_ms(NTP_INTERVAL_MS);
+        sync_expiry = make_timeout_time_ms(NTP_INTERVAL_MS);
     }
 }
 #endif
@@ -148,8 +153,9 @@ bool ntp_client_init(struct ntp_client *state) {
     // Meaningful init values
     state->in_progress = false;
     state->pcb = NULL;
-    // So that next check_run is triggered
-    next_sync_time = get_absolute_time();
+    // Expires immediately, so when `ntp_client_check_run` is called for the
+    // first time, it will always execute an NTP request
+    sync_expiry = get_absolute_time();
     return true;
 }
 
@@ -163,11 +169,9 @@ void ntp_client_check_run(struct ntp_client *state) {
         puts("NTP request timed out");
         ntp_req_close(state);
     }
-    // `state` is zero-inited so it will always fire on the first time
-    if (absolute_time_diff_us(get_absolute_time(), next_sync_time) >= 0)
+    if (absolute_time_diff_us(get_absolute_time(), sync_expiry) >= 0)
         // Not time to sync yet
-        // If GPS sync succeeded, `next_sync_time` should be set to a newer value,
-        // and this branch will be taken
+        // Successful GPS syncs renew `sync_expiry` so we also get here
         return;
 
     if (state->in_progress) {
@@ -191,14 +195,10 @@ void ntp_client_check_run(struct ntp_client *state) {
         do_send_ntp_request(NTP_SERVER, &state->server_address, state);
     } else if (err != ERR_INPROGRESS) { // ERR_INPROGRESS means expect a callback
         puts("DNS request for NTP failed");
-        // 2024-02-11 I don't think this is necessary, originally added
-        // in myzhang1029/codes@3066e3d
-        // state->pcb = NULL;
-        // // Now calling `req_close` is safe because it does not call `udp_remove` on NULL
         ntp_req_close(state);
     }
-    // No matter the result, set the next sync time to be in the future
-    next_sync_time = make_timeout_time_ms(NTP_INTERVAL_MS);
+    // Let `update_rtc` update `sync_expiry`, so that a failed NTP request
+    // is retried as soon as we discover that it has timed out
 }
 
 #endif

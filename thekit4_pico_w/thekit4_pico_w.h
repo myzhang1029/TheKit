@@ -39,21 +39,6 @@ struct ntp_client {
     absolute_time_t deadline;
 };
 
-/// HTTP server. The entire structure exists throughout the program
-/// but `conn` is re-initialized each time a request is received.
-struct http_server {
-    struct tcp_pcb *server_pcb;
-    struct http_server_conn {
-        struct tcp_pcb *client_pcb;
-        enum {
-            HTTP_OTHER = 0,
-            HTTP_ACCEPTED,
-            HTTP_RECEIVING
-        } state;
-        struct pbuf *received;
-    } conn;
-};
-
 struct light_sched_entry {
     int8_t hour;
     int8_t min;
@@ -75,6 +60,7 @@ float temperature_core(void);
 
 void light_init(void);
 void light_toggle(void);
+uint16_t light_get_pwm_level(void);
 void light_dim(float intensity);
 float light_smps_measure(void);
 // Takes the current time to avoid wasting cycles waiting for RTC to be
@@ -86,9 +72,10 @@ bool wifi_connect(void);
 bool ntp_client_init(struct ntp_client *state);
 void ntp_client_check_run(struct ntp_client *state);
 void update_rtc(time_t result, uint8_t stratum);
+uint8_t ntp_get_stratum(void);
 
-bool http_server_open(struct http_server *state);
-void http_server_close(struct http_server *arg);
+bool http_server_open(void);
+void http_server_close(void);
 
 void tasks_init(void);
 bool tasks_check_run(void);

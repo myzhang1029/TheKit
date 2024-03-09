@@ -48,6 +48,22 @@
 #include "lwip/pbuf.h"
 #include "lwip/tcp.h"
 
+/// HTTP server. The entire structure exists throughout the program
+/// but `conn` is re-initialized each time a request is received.
+// Marker: static variable
+static struct http_server {
+    struct tcp_pcb *server_pcb;
+    struct http_server_conn {
+        struct tcp_pcb *client_pcb;
+        enum {
+            HTTP_OTHER = 0,
+            HTTP_ACCEPTED,
+            HTTP_RECEIVING
+        } state;
+        struct pbuf *received;
+    } conn;
+} state;
+
 #define HTTP_PORT 80
 
 static const char resp_common[] = "\r\nContent-Type: application/json\r\n"
@@ -174,8 +190,7 @@ static bool http_req_check_parse(struct http_server_conn *conn) {
 #endif
         float core_temperature = temperature_core();
 #if ENABLE_LIGHT
-        // defined in light.c
-        extern uint16_t current_pwm_level;
+        uint16_t current_pwm_level = light_get_pwm_level();
         float light_voltage = light_smps_measure();
 #else
         uint16_t current_pwm_level = 0;
@@ -195,8 +210,7 @@ static bool http_req_check_parse(struct http_server_conn *conn) {
         timestamp_t gps_age = 0;
         bool gps_location_valid = false;
 #endif
-        // defined in ntp.c
-        extern uint8_t ntp_stratum;
+        uint8_t ntp_stratum = ntp_get_stratum();
         datetime_t dt;
         if (!rtc_get_datetime(&dt)) {
             dt.year = 0;
@@ -320,7 +334,7 @@ static err_t http_conn_recv_cb(void *arg, struct tcp_pcb *tpcb, struct pbuf *p,
 
 static err_t http_server_accept_cb(void *arg, struct tcp_pcb *client_pcb,
                                 err_t err) {
-    struct http_server *state = (struct http_server *)arg;
+    struct http_server_conn *conn = (struct http_server_conn *)arg;
 
     cyw43_arch_lwip_check();
     if (err != ERR_OK || client_pcb == NULL) {
@@ -328,24 +342,21 @@ static err_t http_server_accept_cb(void *arg, struct tcp_pcb *client_pcb,
         return ERR_VAL;
     }
     puts("Client connected");
-    state->conn.state = HTTP_ACCEPTED;
+    conn->state = HTTP_ACCEPTED;
 
-    state->conn.client_pcb = client_pcb;
-    tcp_arg(client_pcb, &state->conn);
+    conn->client_pcb = client_pcb;
+    tcp_arg(client_pcb, conn);
     tcp_recv(client_pcb, http_conn_recv_cb);
     tcp_err(client_pcb, http_conn_err_cb);
 
     return ERR_OK;
 }
 
-bool http_server_open(struct http_server *state) {
-    if (!state)
-        return false;
-
+bool http_server_open(void) {
     // NULL-init `conn`
-    state->conn.client_pcb = NULL;
-    state->conn.state = HTTP_OTHER;
-    state->conn.received = NULL;
+    state.conn.client_pcb = NULL;
+    state.conn.state = HTTP_OTHER;
+    state.conn.received = NULL;
 
     printf("Starting server on port %u\n", HTTP_PORT);
 
@@ -365,8 +376,8 @@ bool http_server_open(struct http_server *state) {
         return false;
     }
 
-    state->server_pcb = tcp_listen_with_backlog(pcb, 1);
-    if (!state->server_pcb) {
+    state.server_pcb = tcp_listen_with_backlog(pcb, 1);
+    if (!state.server_pcb) {
         tcp_close(pcb);
         cyw43_arch_lwip_end();
         puts("Failed to listen");
@@ -374,22 +385,20 @@ bool http_server_open(struct http_server *state) {
     }
 
     // Specify the payload for the callbacks
-    tcp_arg(state->server_pcb, state);
-    tcp_accept(state->server_pcb, http_server_accept_cb);
+    tcp_arg(state.server_pcb, &state.conn);
+    tcp_accept(state.server_pcb, http_server_accept_cb);
     cyw43_arch_lwip_end();
 
     return true;
 }
 
-void http_server_close(struct http_server *state) {
-    if (state == NULL)
-        return;
-    http_conn_close(&state->conn);
-    if (state->server_pcb) {
+void http_server_close(void) {
+    http_conn_close(&state.conn);
+    if (state.server_pcb) {
         cyw43_arch_lwip_begin();
-        tcp_arg(state->server_pcb, NULL);
-        tcp_close(state->server_pcb);
+        tcp_arg(state.server_pcb, NULL);
+        tcp_close(state.server_pcb);
         cyw43_arch_lwip_end();
-        state->server_pcb = NULL;
+        state.server_pcb = NULL;
     }
 }
