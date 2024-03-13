@@ -174,11 +174,8 @@ void ntp_client_check_run(struct ntp_client *state) {
         // Successful GPS syncs renew `sync_expiry` so we also get here
         return;
 
-    if (state->in_progress) {
-        // Timeout is already checked for
-        puts("Skipping NTP request, another is still in progress");
+    if (state->in_progress)
         return;
-    }
     // Time to close the connection in case UDP requests are lost
     state->deadline = make_timeout_time_ms(UDP_TIMEOUT_TIME_MS);
 

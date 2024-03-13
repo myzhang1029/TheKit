@@ -111,9 +111,9 @@ static const int TZ_DIFF_SEC = -8 * 3600;
 // TX is not actually used
 static const uint GPS_TX_PIN = 12;
 static const uint GPS_RX_PIN = 13;
-static const uint GPS_EN_PIN = 14;
-static const uint GPS_PPS_PIN = 15;
-static const uint GPS_BAUD = 9600;
+static const uint GPS_EN_PIN = 11;
+static const uint GPS_PPS_PIN = 14;
+static const uint GPS_BAUD = 115200;
 #define PPS_EDGE_TYPE GPIO_IRQ_EDGE_RISE
 #endif
 
