@@ -40,6 +40,9 @@ static void register_mdns(void) {
 static void print_ip(void) {
     cyw43_arch_lwip_begin();
     printf("IP Address: %s\n", ipaddr_ntoa(&WIFI_NETIF.ip_addr));
+    printf("IPv6 Address[0]: %s, state=%d\n", ipaddr_ntoa(&WIFI_NETIF.ip6_addr[0]), (int) WIFI_NETIF.ip6_addr_state[0]);
+    printf("IPv6 Address[1]: %s, state=%d\n", ipaddr_ntoa(&WIFI_NETIF.ip6_addr[1]), (int) WIFI_NETIF.ip6_addr_state[1]);
+    printf("IPv6 Address[2]: %s, state=%d\n", ipaddr_ntoa(&WIFI_NETIF.ip6_addr[2]), (int) WIFI_NETIF.ip6_addr_state[2]);
     cyw43_arch_lwip_end();
 }
 

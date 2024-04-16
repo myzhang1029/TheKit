@@ -51,8 +51,7 @@
 
 /// HTTP server. The entire structure exists throughout the program
 /// but `conn` is re-initialized each time a request is received.
-// Marker: static variable
-static struct http_server {
+struct http_server {
     struct tcp_pcb *server_pcb;
     struct http_server_conn {
         struct tcp_pcb *client_pcb;
@@ -63,7 +62,7 @@ static struct http_server {
         } state;
         struct pbuf *received;
     } conn;
-} state;
+};
 
 #define HTTP_PORT 80
 
@@ -377,23 +376,23 @@ static err_t http_server_accept_cb(void *arg, struct tcp_pcb *client_pcb,
     return ERR_OK;
 }
 
-bool http_server_open(void) {
+static bool http_server_open_one(struct http_server *server, uint8_t lwip_type, const ip_addr_t *ipaddr) {
     // NULL-init `conn`
-    state.conn.client_pcb = NULL;
-    state.conn.state = HTTP_OTHER;
-    state.conn.received = NULL;
+    server->conn.client_pcb = NULL;
+    server->conn.state = HTTP_OTHER;
+    server->conn.received = NULL;
 
-    printf("Starting server on port %u\n", HTTP_PORT);
+    printf("Starting server on [%s]:%u\n", ipaddr_ntoa(ipaddr), HTTP_PORT);
 
     cyw43_arch_lwip_begin();
-    struct tcp_pcb *pcb = tcp_new_ip_type(IPADDR_TYPE_ANY);
+    struct tcp_pcb *pcb = tcp_new_ip_type(lwip_type);
     if (!pcb) {
         cyw43_arch_lwip_end();
         puts("Failed to create pcb");
         return false;
     }
 
-    err_t err = tcp_bind(pcb, NULL, HTTP_PORT);
+    err_t err = tcp_bind(pcb, ipaddr, HTTP_PORT);
     if (err) {
         tcp_close(pcb);
         cyw43_arch_lwip_end();
@@ -401,8 +400,8 @@ bool http_server_open(void) {
         return false;
     }
 
-    state.server_pcb = tcp_listen_with_backlog(pcb, 1);
-    if (!state.server_pcb) {
+    server->server_pcb = tcp_listen_with_backlog(pcb, 1);
+    if (!server->server_pcb) {
         tcp_close(pcb);
         cyw43_arch_lwip_end();
         puts("Failed to listen");
@@ -410,20 +409,49 @@ bool http_server_open(void) {
     }
 
     // Specify the payload for the callbacks
-    tcp_arg(state.server_pcb, &state.conn);
-    tcp_accept(state.server_pcb, http_server_accept_cb);
+    tcp_arg(server->server_pcb, &server->conn);
+    tcp_accept(server->server_pcb, http_server_accept_cb);
     cyw43_arch_lwip_end();
 
     return true;
 }
 
-void http_server_close(void) {
-    http_conn_close(&state.conn);
-    if (state.server_pcb) {
+static void http_server_close_one(struct http_server *server) {
+    http_conn_close(&server->conn);
+    if (server->server_pcb) {
         cyw43_arch_lwip_begin();
-        tcp_arg(state.server_pcb, NULL);
-        tcp_close(state.server_pcb);
+        tcp_arg(server->server_pcb, NULL);
+        tcp_close(server->server_pcb);
         cyw43_arch_lwip_end();
-        state.server_pcb = NULL;
+        server->server_pcb = NULL;
     }
+}
+
+#if LWIP_IPV4
+// Marker: static variable
+static struct http_server state4;
+#endif
+#if LWIP_IPV6
+// Marker: static variable
+static struct http_server state6;
+#endif
+
+bool http_server_open(void) {
+    bool success = true;
+#if LWIP_IPV4
+    success &= http_server_open_one(&state4, IPADDR_TYPE_V4, IP4_ADDR_ANY);
+#endif
+#if LWIP_IPV6
+    success &= http_server_open_one(&state6, IPADDR_TYPE_V6, IP6_ADDR_ANY);
+#endif
+    return success;
+}
+
+void http_server_close(void) {
+#if LWIP_IPV4
+    http_server_close_one(&state4);
+#endif
+#if LWIP_IPV6
+    http_server_close_one(&state6);
+#endif
 }
