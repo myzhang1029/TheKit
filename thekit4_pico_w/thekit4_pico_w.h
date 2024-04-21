@@ -69,11 +69,6 @@ void light_register_next_alarm(datetime_t *current);
 
 bool wifi_connect(void);
 
-bool ntp_client_init(struct ntp_client *state);
-void ntp_client_check_run(struct ntp_client *state);
-void update_rtc(time_t result, uint8_t stratum);
-uint8_t ntp_get_stratum(void);
-
 bool http_server_open(void);
 void http_server_close(void);
 

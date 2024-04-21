@@ -36,6 +36,7 @@
 #include "config.h"
 #include "thekit4_pico_w.h"
 #include "log.h"
+#include "ntp.h"
 
 #include <inttypes.h>
 #include <math.h>
@@ -181,7 +182,7 @@ static bool http_req_check_parse(struct http_server_conn *conn) {
         // unlikely
         || pbuf_memcmp(conn->received, offset_path, "/get_info\r", 2) == 0) {
         // Max length + NNN\r\n\r\n + \0
-        char response[283] = {0};
+        char response[278] = {0};
         size_t length;
 #if ENABLE_TEMPERATURE_SENSOR
         float temperature = temperature_measure();
@@ -224,7 +225,7 @@ static bool http_req_check_parse(struct http_server_conn *conn) {
         }
         /* Generate response. Might need refactoring if/when exceeds MTU */
         /* This number is the sum + 1 (for the \0). NNN is this sum - content-length */
-        length = snprintf(response, 283,
+        length = snprintf(response, 278,
                      /* content-length = 7 */
                      "NNN\r\n\r\n"
                      /* JSON = 2 */
@@ -243,8 +244,8 @@ static bool http_req_check_parse(struct http_server_conn *conn) {
                      "\"longitude\": %.6f, "
                      /* altitude = 6 + 8 + 9 (-4.3 float) */
                      "\"altitude\": %.3f, "
-                     /* datetime = 6 + 8 + 19 + 2 (str) */
-                     "\"datetime\": \"%04u-%02u-%02u %02u:%02u:%02u\", "
+                     /* utc = 6 + 3 + 19 + 2 (str) */
+                     "\"utc\": \"%04u-%02u-%02u %02u:%02u:%02u\", "
                      /* tz_sec = 6 + 6 + 6 (-5 int) */
                      "\"tz_sec\": %d, "
                      /* stratum = 6 + 7 + 2 (b4 int) */
@@ -258,10 +259,10 @@ static bool http_req_check_parse(struct http_server_conn *conn) {
                      lat, lon, alt,
                      dt.year, dt.month, dt.day, dt.hour, dt.min, dt.sec, TZ_DIFF_SEC,
                      (unsigned)ntp_stratum, (unsigned long long)gps_age, (unsigned)gps_location_valid);
-        snprintf(response, 283, "%u\r\n\r\n{\"temperature\": %.3f, \"pwm\": %u, "
+        snprintf(response, 278, "%u\r\n\r\n{\"temperature\": %.3f, \"pwm\": %u, "
                 "\"core_temp\": %.3f, \"light_voltage\": %.2f, "
                 "\"latitude\": %.6f, \"longitude\": %.6f, \"altitude\": %.3f, "
-                "\"datetime\": \"%04u-%02u-%02u %02u:%02u:%02u\", \"tz_sec\": %d, "
+                "\"utc\": \"%04u-%02u-%02u %02u:%02u:%02u\", \"tz_sec\": %d, "
                 "\"stratum\": %u, \"gps_age\": %llu, \"gps_valid\": %u}",
                  (unsigned)length - 7,
                  temperature, (unsigned)current_pwm_level,

@@ -24,3 +24,12 @@ The fourth generation is even more power-efficient because it is a Raspberry Pi 
 program with all the previous features ([thekit4_pico_w](thekit4_pico_w)). I had to
 create it because the SD card on the Pi failed. I coded most of the server routines from
 scratch based on LwIP.
+
+As of now, it has grown into a massively-overengineered project designed to keep my desk
+operational even without power or internet. (I guess a lot of HAM radio operators have a
+similar mindset. :P)
+It contains a fully hand-written HTTP server, controllers for my home-made
+[buck](https://maiyun.me/blog/2022/11/11/Buck-Converter) and
+[boost](https://maiyun.me/blog/2024/03/07/Boost-Converter) converters, a GPS receiver
+with PPS time synchronization support, and an NTP server is planned.
+I kind of got a new hobby of reading RFCs from this project (crying face).

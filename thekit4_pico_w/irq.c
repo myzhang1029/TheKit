@@ -18,6 +18,7 @@
 
 #include "config.h"
 #include "thekit4_pico_w.h"
+#include "ntp.h"
 
 #include "pico/stdlib.h"
 
@@ -39,8 +40,9 @@ static void gps_update_rtc(void) {
         // Reject if the previous time update happened more than 1 second ago
         return;
     }
-    // GPS itself is stratum 0
-    update_rtc(t, 0);
+    // GPS itself is stratum 0, reference identifier is 0x47505300 ("GPS\0")
+    ntp_set_utc_us(0);
+    ntp_update_rtc(t, 0, 0x47505300);
 }
 #endif
 

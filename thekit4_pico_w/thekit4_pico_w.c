@@ -20,6 +20,7 @@
 #include "config.h"
 #include "thekit4_pico_w.h"
 #include "log.h"
+#include "ntp.h"
 
 #include "pico/cyw43_arch.h"
 #include "pico/stdlib.h"

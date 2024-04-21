@@ -19,6 +19,7 @@
 #include "config.h"
 #include "thekit4_pico_w.h"
 #include "log.h"
+#include "ntp.h"
 
 #include "hardware/rtc.h"
 #if ENABLE_WATCHDOG
@@ -211,7 +212,7 @@ static bool send_temperature(void) {
     float temperature = temperature_measure();
     char uri[WOLFRAM_URI_BUFSIZE];
     snprintf(uri, WOLFRAM_URI_BUFSIZE, WOLFRAM_URI, WOLFRAM_DATABIN_ID, temperature);
-    LOG_INFO("Sending temperature");
+    LOG_INFO1("Sending temperature");
     bool result = send_http_request_dns(WOLFRAM_HOST, uri, HTTP_DEFAULT_PORT, true);
     return result;
 }
