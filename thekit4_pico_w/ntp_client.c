@@ -1,7 +1,5 @@
 /*
- *  ntp.c
- *  Heavily refactored from BSD-3-Clause picow_ntp_client.c
- *  Copyright (c) 2022 Raspberry Pi (Trading) Ltd.
+ *  ntp_client.c
  *  Copyright (C) 2022-2024 Zhang Maiyun <me@maiyun.me>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -28,129 +26,36 @@
 #include <string.h>
 #include <time.h>
 
-#include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
-
-#include "hardware/rtc.h"
+#include "pico/divider.h"
+#include "pico/stdlib.h"
 
 #include "lwip/dns.h"
 #include "lwip/pbuf.h"
 #include "lwip/udp.h"
 
-// Our current position in the stratum system
-// used in http_server.c and tasks.c
-// It remains 16 if NTP nor GPS is enabled
-// Marker: static variable
-static volatile uint8_t ntp_stratum = 16;
-// NTP reference identifier
-// Marker: static variable
-static volatile uint32_t ntp_ref = 0;
-
-uint8_t ntp_get_stratum(void) {
-    return ntp_stratum;
-}
-
-uint32_t ntp_get_ref(void) {
-    return ntp_ref;
-}
-
-#if ENABLE_NTP || ENABLE_GPS
-// Marker: static variable
-static volatile absolute_time_t sync_expiry;
-// Difference for calculating UTC time microsecond part by
-// absolute_time_diff_us(ntp_us_offset, get_absolute_time())
-// Then, assuming that the RTC works properly, this value % 1000000
-// is the microsecond part
-// In other words, this timestamp marks the start of a UTC second
-// Only for NTP internal use
-static volatile absolute_time_t ntp_us_offset;
-
-// We should allow calling these from an ISR
-void ntp_update_rtc(time_t result, uint8_t stratum, uint32_t ref) {
-    datetime_t dt;
-    unix_to_datetime(result, &dt);
-    // Let the RTC follow UTC
-    if (rtc_set_datetime(&dt)) {
-        ntp_stratum = stratum + 1;
-        ntp_ref = ref;
-        // So that NTP is not run when we have GPS time
-        sync_expiry = make_timeout_time_ms(NTP_INTERVAL_MS);
-    }
-}
-
-void ntp_set_utc_us(uint32_t value) {
-    assert(value < 1000000);
-    ntp_us_offset = delayed_by_us(get_absolute_time(), 1000000 - value);
-}
-
-uint32_t ntp_get_utc_us(void) {
-    return absolute_time_diff_us(ntp_us_offset, get_absolute_time()) % 1000000;
-}
-
-void ntp_apply_us_offset(int32_t offset) {
-    uint64_t new_us = ntp_get_utc_us() + offset;
-    uint32_t second_correction = 0;
-    if (new_us < 0) {
-        new_us += 1000000;
-        second_correction = -1;
-    } else if (new_us >= 1000000) {
-        new_us -= 1000000;
-        second_correction = 1;
-    }
-    ntp_set_utc_us(new_us);
-    if (second_correction) {
-        datetime_t dt;
-        if (rtc_get_datetime(&dt)) {
-            unix_to_datetime(datetime_to_unix(&dt) + second_correction, &dt);
-            rtc_set_datetime(&dt);
-        }
-    }
-}
-#endif
-
 #if ENABLE_NTP
 /// Fill the current time into `tx_ts_*`, in network byte order.
 /// Call this as close to sending the request as possible.
 static void ntp_fill_tx(struct ntp_message *outgoing) {
-    datetime_t dt;
-    if (!rtc_get_datetime(&dt)) {
-        LOG_WARN1("Failed to get datetime, falling back to simple request");
-        // Assuming that the structure is zeroed
-        return;
-    }
-    time_t t = datetime_to_unix(&dt);
-    outgoing->tx_ts_sec = lwip_htonl(t + NTP_DELTA);
-    outgoing->tx_ts_frac = lwip_htonl(((uint64_t)ntp_get_utc_us() << 26) / 15625);
+    uint64_t now = ntp_get_utc_us(), now_uspart;
+    uint64_t now_spart = divmod_u64u64_rem(now, 1000000, &now_uspart);
+    // Marker: Y2038 unsafe
+    outgoing->tx_ts_sec = lwip_htonl((uint32_t) now_spart + NTP_DELTA);
+    outgoing->tx_ts_frac = lwip_htonl((uint32_t) ((now_uspart << 26) / 15625));
 }
 
 /// Fill the current time into `ref_ts_*`, in host byte order.
 /// Call this as close to receiving the response as possible.
 static void ntp_fill_rx_as_ref(struct ntp_message *incoming) {
-    datetime_t dt;
-    if (!rtc_get_datetime(&dt)) {
-        LOG_WARN1("Failed to get datetime, falling back to simple request");
-        // Assuming that the structure is zeroed
-        return;
-    }
-    time_t t = datetime_to_unix(&dt);
-    incoming->ref_ts_sec = t + NTP_DELTA;
-    incoming->ref_ts_frac = ((uint64_t)ntp_get_utc_us() << 26) / 15625;
+    uint64_t now = ntp_get_utc_us(), now_uspart;
+    uint64_t now_spart = divmod_u64u64_rem(now, 1000000, &now_uspart);
+    // Marker: Y2038 unsafe
+    incoming->ref_ts_sec = (uint32_t) now_spart + NTP_DELTA;
+    incoming->ref_ts_frac = (uint32_t) ((now_uspart << 26) / 15625);
 }
 
-/// Close this request
-static void ntp_req_close(struct ntp_client *state) {
-    if (!state)
-        return;
-    if (state->pcb) {
-        cyw43_arch_lwip_begin();
-        udp_remove(state->pcb);
-        cyw43_arch_lwip_end();
-        state->pcb = NULL;
-    }
-    state->in_progress = false;
-}
-
-/// Process an incoming NTP response and update the RTC
+/// Process an incoming NTP response and update the clock
 /// `incoming` should have been modified before calling this function such that:
 /// - Fields are in host byte order
 /// - `ref_ts` should be replaced with the time the server received the request (from `ntp_fill_rx_as_ref`)
@@ -166,26 +71,37 @@ static void ntp_process_response(const struct ntp_message *incoming, uint8_t str
     // RFC 5905 calculation
     // Since we use a `uint64_t` to keep the microseconds, we can completely eliminate floating
     // point operations
-    // These are twice the correct values, the division is deferred
-    int64_t soffset2 = (t2s - t1s) + (t3s - t4s);
-    if (soffset2 > NTP_EPSILON2 || soffset2 < -NTP_EPSILON2) {
+    // These are twice the correct values
+    int64_t soffset2 = ((int64_t) t2s - t1s) + ((int64_t) t3s - t4s);
+    if (soffset2 > 2 || soffset2 < -2) {
+        // If the offset is larger than a second, take T3 as the time;
+        // otherwise, use offset to correct system time
         LOG_WARN1("Big offset, assuming initial sync");
-        ntp_update_rtc(t3s - NTP_DELTA, stratum, ref);
-        ntp_set_utc_us((t3f * 15625) >> 27);
-    }
-    else {
-        int64_t foffset2 = (t2f - t1f) + (t3f - t4f);
+        uint32_t us = ((uint64_t) t3f * 15625ULL) >> 26;
+        uint64_t now = ((uint64_t) t3s - NTP_DELTA) * 1000000 + us;
+        LOG_DEBUG("New time = %" PRId64 "\n", now);
+        ntp_update_time(now, stratum, ref);
+    } else {
+        int64_t foffset2 = ((int64_t) t2f - t1f) + ((int64_t) t3f - t4f);
         // factor = 10^6 2^-32 = 5^6 2^-26, divide one more time so it is no longer twice the offset
-        int32_t foffset_us = (foffset2 * 15625) >> 27;
-        // If `soffset2` is odd, add 0.5 seconds to foffset_us
-        if (soffset2 & 1) {
-            if (soffset2 > 0)
-                foffset_us += 500000;
-            else
-                foffset_us -= 500000;
-        }
-        ntp_apply_us_offset(foffset_us);
+        int32_t foffset_us = (foffset2 * 15625ULL) >> 27;
+        int64_t toffset = soffset2 * 500000 + foffset_us;
+        LOG_INFO("Applied offset = %" PRId64 "\n", toffset);
+        ntp_update_time_by_offset(toffset, stratum, ref);
     }
+}
+
+/// Close this request
+static void ntp_req_close(struct ntp_client *state) {
+    if (!state)
+        return;
+    if (state->pcb) {
+        cyw43_arch_lwip_begin();
+        udp_remove(state->pcb);
+        cyw43_arch_lwip_end();
+        state->pcb = NULL;
+    }
+    state->in_progress = false;
 }
 
 // NTP data received callback
@@ -199,20 +115,19 @@ static void ntp_recv_cb(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip
         LOG_ERR1("Invalid NTP response");
         goto bad;
     }
-    if (!ntp_fill_pbuf(p, &incoming)) {
+    if (!ntp_from_pbuf(p, &incoming)) {
         LOG_ERR1("Failed to copy NTP response");
         goto bad;
     }
-    ntp_dump_debug(&incoming);
     ntp_fill_rx_as_ref(&incoming);
+    ntp_dump_debug(&incoming);
     uint8_t mode = incoming.flags & 0x7;
     uint8_t version = (incoming.flags >> 3) & 0x7;
-    if (incoming.stratum == 0 || mode != 0x4 || version != NTP_VERSION) {
+    if (incoming.stratum == 0 || mode != 0x4 || version < NTP_VERSION_OK) {
         LOG_ERR1("Invalid or unsupported NTP response");
         goto bad;
     }
-    uint32_t new_ref = lwip_htonl(ntp_make_ref(addr));
-    ntp_process_response(&incoming, incoming.stratum, new_ref);
+    ntp_process_response(&incoming, incoming.stratum, ntp_make_ref(addr));
 bad:
     ntp_req_close(state);
     pbuf_free(p);
@@ -224,8 +139,7 @@ static void do_send_ntp_request(const char *_hostname, const ip_addr_t *ipaddr, 
     if (ipaddr) {
         state->server_address = *ipaddr;
         LOG_DEBUG("NTP address %s\n", ipaddr_ntoa(ipaddr));
-    }
-    else {
+    } else {
         LOG_ERR1("NTP DNS request failed");
         ntp_req_close(state);
         return;
@@ -260,9 +174,6 @@ bool ntp_client_init(struct ntp_client *state) {
     // Meaningful init values
     state->in_progress = false;
     state->pcb = NULL;
-    // Expires immediately, so when `ntp_client_check_run` is called for the
-    // first time, it will always execute an NTP request
-    sync_expiry = get_absolute_time();
     return true;
 }
 
@@ -276,7 +187,7 @@ void ntp_client_check_run(struct ntp_client *state) {
         LOG_ERR1("NTP request timed out");
         ntp_req_close(state);
     }
-    if (absolute_time_diff_us(get_absolute_time(), sync_expiry) >= 0)
+    if (absolute_time_diff_us(ntp_get_last_sync(), get_absolute_time()) < NTP_INTERVAL_US)
         // Not time to sync yet
         // Successful GPS syncs renew `sync_expiry` so we also get here
         return;
@@ -301,7 +212,7 @@ void ntp_client_check_run(struct ntp_client *state) {
         LOG_ERR1("DNS request for NTP failed");
         ntp_req_close(state);
     }
-    // Let `ntp_update_rtc` update `sync_expiry`, so that a failed NTP request
+    // Let `ntp_update_time` update `sync_expiry`, so that a failed NTP request
     // is retried as soon as we discover that it has timed out
 }
 

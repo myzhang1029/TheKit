@@ -51,12 +51,12 @@ static const float clockdiv = 1.;
 static const uint16_t WRAP = 1000;
 
 // Light-based alarms
-// Sort chronologically TODO
+// Sort chronologically
 static const struct light_sched_entry light_sched[] = {
-    {7+7, 0, true},
-    {8+7, 0, false},
-    {21+7, 30, true},
-    {22+7, 30, false},
+    {7, 0, true},
+    {8, 0, false},
+    {21, 30, true},
+    {22, 30, false},
 };
 #endif
 
@@ -100,15 +100,13 @@ static const size_t DDNS_URI_BUFSIZE = sizeof(DDNS_URI) + sizeof(DDNS_HOST) + si
 #if ENABLE_NTP
 static const char NTP_SERVER[] = "pool.ntp.org";
 static const uint16_t NTP_PORT = 123;
-#endif
-#if ENABLE_NTP || ENABLE_GPS
 // 10 minutes between syncs
-static const uint32_t NTP_INTERVAL_MS = 60 * 1000;
+static const uint64_t NTP_INTERVAL_US = 600 * 1000 * 1000;
 // Time to wait in case UDP requests are lost
 static const uint32_t NTP_UDP_TIMEOUT_TIME_MS = 5 * 1000;
-// Timezone for the alarms (RTC is in UTC); TODO
-static const int TZ_DIFF_SEC = -7 * 3600;
 #endif
+// Timezone for the alarms (RTC is in localtime);
+static const int TZ_DIFF_SEC = -7 * 3600;
 
 // GPS-related
 #if ENABLE_GPS

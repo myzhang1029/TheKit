@@ -227,7 +227,7 @@ static bool renew_light_alarm(void) {
         LOG_WARN1("No NTP sync yet, skipping light alarm");
         return false;
     }
-    if (!rtc_get_datetime(&dt)) {
+    if (!ntp_update_rtc(&dt)) {
         LOG_WARN1("RTC not running, skipping light alarm");
         return false;
     }

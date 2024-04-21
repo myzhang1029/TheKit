@@ -53,23 +53,27 @@ static const uint16_t NTP_MSG_LEN = sizeof(struct ntp_message);
 static const uint32_t NTP_DELTA = 2208988800;
 // (S)NTP version this code is compatible with
 static const uint8_t NTP_VERSION = 4;
-// Twice the threshold for a big offset:
-// if the offset is larger than a second, Take T3 as the time;
-// otherwise, use Theta to correct system time
-static const uint32_t NTP_EPSILON2 = 2;
+// Minimum server version we can accept
+static const uint8_t NTP_VERSION_OK = 3;
+// "GPS\0" in host byte order
+static const uint32_t NTP_REF_GPS = 0x47505300;
 
-void unix_to_datetime(time_t result, datetime_t *dt);
-time_t datetime_to_unix(const datetime_t *dt);
-
-uint32_t ntp_make_ref(const ip_addr_t *addr);
-bool ntp_fill_pbuf(struct pbuf *p, struct ntp_message *dest);
-void ntp_dump_debug(const struct ntp_message *msg);
-
+// ntp_common.c
 uint8_t ntp_get_stratum(void);
 uint32_t ntp_get_ref(void);
-void ntp_update_rtc(time_t result, uint8_t stratum, uint32_t ref);
-void ntp_set_utc_us(uint32_t value);
+absolute_time_t ntp_get_last_sync(void);
 
+void ntp_update_time(uint64_t now, uint8_t stratum, uint32_t ref);
+void ntp_update_time_by_offset(int64_t offset, uint8_t stratum, uint32_t ref);
+uint64_t ntp_get_utc_us(void);
+bool ntp_update_rtc(datetime_t *dt);
+
+void unix_to_local_datetime(time_t result, datetime_t *dt);
+uint32_t ntp_make_ref(const ip_addr_t *addr);
+bool ntp_from_pbuf(const struct pbuf *p, struct ntp_message *dest);
+void ntp_dump_debug(const struct ntp_message *msg);
+
+// ntp_client.c
 bool ntp_client_init(struct ntp_client *state);
 void ntp_client_check_run(struct ntp_client *state);
 
