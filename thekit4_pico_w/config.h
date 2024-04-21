@@ -1,3 +1,6 @@
+#ifndef _CONFIG_H
+#define _CONFIG_H
+
 #include "thekit4_pico_w.h"
 
 #include "pico/stdlib.h"
@@ -120,3 +123,5 @@ static const uint GPS_BAUD = 115200;
 // Networking-related
 static const char DEFAULT_DNS[] = "1.1.1.1";
 static const bool FORCE_DEFAULT_DNS = true;
+
+#endif

@@ -19,8 +19,7 @@
 
 #include "config.h"
 #include "thekit4_pico_w.h"
-
-#include <stdio.h>
+#include "log.h"
 
 #include "pico/cyw43_arch.h"
 #include "pico/stdlib.h"
@@ -43,7 +42,7 @@ static void init() {
 
 #if ENABLE_WATCHDOG
     if (watchdog_caused_reboot())
-        puts("Rebooted by watchdog");
+        LOG_WARN1("Rebooted by watchdog");
 #endif
 
     rtc_init();
@@ -74,13 +73,13 @@ static void init() {
 
 #if ENABLE_NTP
     if (!ntp_client_init(&ntp_state))
-        puts("WARNING: Cannot init NTP client");
+        LOG_WARN1("Cannot init NTP client");
 #endif
     // Start HTTP server
     if (!http_server_open())
-        puts("WARNING: Cannot open HTTP server");
+        LOG_WARN1("Cannot open HTTP server");
 
-    puts("Successfully initialized everything");
+    LOG_INFO1("Successfully initialized everything");
 }
 
 void feed_dog() {
@@ -97,7 +96,7 @@ int main() {
         int wifi_state = cyw43_wifi_link_status(&cyw43_state, CYW43_ITF_STA);
         feed_dog();
         if (wifi_state != CYW43_LINK_JOIN) {
-            printf("Wi-Fi link status is %d, reconnecting\n", wifi_state);
+            LOG_WARN("Wi-Fi link status is %d, reconnecting\n", wifi_state);
             wifi_connect();
             feed_dog();
         }

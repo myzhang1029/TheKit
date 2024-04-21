@@ -20,6 +20,7 @@
 
 #include "config.h"
 #include "thekit4_pico_w.h"
+#include "log.h"
 
 #include <string.h>
 #include <time.h>
@@ -107,7 +108,7 @@ static void ntp_recv_cb(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip
         time_t epoch = seconds_since_1970;
         update_rtc(epoch, stratum);
     } else {
-        puts("Invalid NTP response");
+        LOG_ERR1("Invalid NTP response");
     }
     ntp_req_close(state);
     pbuf_free(p);
@@ -118,10 +119,10 @@ static void do_send_ntp_request(const char *_hostname, const ip_addr_t *ipaddr, 
     struct ntp_client *state = (struct ntp_client *)arg;
     if (ipaddr) {
         state->server_address = *ipaddr;
-        printf("NTP address %s\n", ipaddr_ntoa(ipaddr));
+        LOG_DEBUG("NTP address %s\n", ipaddr_ntoa(ipaddr));
     }
     else {
-        puts("NTP DNS request failed");
+        LOG_ERR1("NTP DNS request failed");
         ntp_req_close(state);
         return;
     }
@@ -132,7 +133,7 @@ static void do_send_ntp_request(const char *_hostname, const ip_addr_t *ipaddr, 
     state->pcb = udp_new_ip_type(IPADDR_TYPE_ANY);
     if (!state->pcb) {
         cyw43_arch_lwip_end();
-        puts("Failed to create pcb");
+        LOG_ERR1("Failed to create pcb");
         ntp_req_close(state);
         return;
     }
@@ -166,7 +167,7 @@ void ntp_client_check_run(struct ntp_client *state) {
 
     // Check for timed-out requests
     if (state->in_progress && absolute_time_diff_us(get_absolute_time(), state->deadline) < 0) {
-        puts("NTP request timed out");
+        LOG_ERR1("NTP request timed out");
         ntp_req_close(state);
     }
     if (absolute_time_diff_us(get_absolute_time(), sync_expiry) >= 0)
@@ -191,7 +192,7 @@ void ntp_client_check_run(struct ntp_client *state) {
         // Cached result
         do_send_ntp_request(NTP_SERVER, &state->server_address, state);
     } else if (err != ERR_INPROGRESS) { // ERR_INPROGRESS means expect a callback
-        puts("DNS request for NTP failed");
+        LOG_ERR1("DNS request for NTP failed");
         ntp_req_close(state);
     }
     // Let `update_rtc` update `sync_expiry`, so that a failed NTP request

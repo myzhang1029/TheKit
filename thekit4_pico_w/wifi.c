@@ -18,6 +18,7 @@
 
 #include "config.h"
 #include "thekit4_pico_w.h"
+#include "log.h"
 
 #include "pico/cyw43_arch.h"
 
@@ -39,20 +40,20 @@ static void register_mdns(void) {
 
 static void print_ip(void) {
     cyw43_arch_lwip_begin();
-    printf("IP Address: %s\n", ipaddr_ntoa(&WIFI_NETIF.ip_addr));
-    printf("IPv6 Address[0]: %s, state=%d\n", ipaddr_ntoa(&WIFI_NETIF.ip6_addr[0]), (int) WIFI_NETIF.ip6_addr_state[0]);
-    printf("IPv6 Address[1]: %s, state=%d\n", ipaddr_ntoa(&WIFI_NETIF.ip6_addr[1]), (int) WIFI_NETIF.ip6_addr_state[1]);
-    printf("IPv6 Address[2]: %s, state=%d\n", ipaddr_ntoa(&WIFI_NETIF.ip6_addr[2]), (int) WIFI_NETIF.ip6_addr_state[2]);
+    LOG_INFO("IP Address: %s\n", ipaddr_ntoa(&WIFI_NETIF.ip_addr));
+    LOG_INFO("IPv6 Address[0]: %s, state=%d\n", ipaddr_ntoa(&WIFI_NETIF.ip6_addr[0]), (int) WIFI_NETIF.ip6_addr_state[0]);
+    LOG_INFO("IPv6 Address[1]: %s, state=%d\n", ipaddr_ntoa(&WIFI_NETIF.ip6_addr[1]), (int) WIFI_NETIF.ip6_addr_state[1]);
+    LOG_INFO("IPv6 Address[2]: %s, state=%d\n", ipaddr_ntoa(&WIFI_NETIF.ip6_addr[2]), (int) WIFI_NETIF.ip6_addr_state[2]);
     cyw43_arch_lwip_end();
 }
 
 static void print_and_check_dns(void) {
     cyw43_arch_lwip_begin();
     const ip_addr_t *pdns = dns_getserver(0);
-    printf("DNS Server: %s\n", ipaddr_ntoa(pdns));
+    LOG_INFO("DNS Server: %s\n", ipaddr_ntoa(pdns));
     if (FORCE_DEFAULT_DNS || ip_addr_eq(pdns, &ip_addr_any)) {
         ip_addr_t default_dns;
-        printf("Reconfiguing DNS server to %s\n", DEFAULT_DNS);
+        LOG_INFO("Reconfiguing DNS server to %s\n", DEFAULT_DNS);
         ipaddr_aton(DEFAULT_DNS, &default_dns);
         dns_setserver(0, &default_dns);
     }
@@ -63,7 +64,7 @@ static void print_and_check_dns(void) {
 bool wifi_connect(void) {
     int n_configs = sizeof(wifi_config) / sizeof(struct wifi_config_entry);
     for (int i = 0; i < n_configs; ++i) {
-        printf("Attempting Wi-Fi %s\n", wifi_config[i].ssid);
+        LOG_INFO("Attempting Wi-Fi %s\n", wifi_config[i].ssid);
 #if ENABLE_WATCHDOG
         watchdog_update();
 #endif
@@ -82,8 +83,8 @@ bool wifi_connect(void) {
             register_mdns();
             return true;
         }
-        printf("Failed with status %d\n", result);
+        LOG_ERR("Failed with status %d\n", result);
     }
-    puts("WARNING: Cannot connect to Wi-Fi");
+    LOG_WARN1("Cannot connect to Wi-Fi");
     return false;
 }

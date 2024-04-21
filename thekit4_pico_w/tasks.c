@@ -18,6 +18,7 @@
 
 #include "config.h"
 #include "thekit4_pico_w.h"
+#include "log.h"
 
 #include "hardware/rtc.h"
 #if ENABLE_WATCHDOG
@@ -54,7 +55,7 @@ static err_t http_client_close(struct tcp_pcb *conn, struct tcp_pcb *tpcb) {
     tcp_err(tpcb, NULL);
     err = tcp_close(tpcb);
     if (err != ERR_OK) {
-        printf("Close failed (%d), calling abort\n", err);
+        LOG_ERR("Close failed (%d), calling abort\n", err);
         tcp_abort(tpcb);
         err = ERR_ABRT;
     }
@@ -64,12 +65,12 @@ static err_t http_client_close(struct tcp_pcb *conn, struct tcp_pcb *tpcb) {
 
 static err_t tcp_recv_cb(void *_arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
     if (p == NULL) {
-        puts("Remote closed connection");
+        LOG_INFO1("Remote closed connection");
         // In this case client is still closed by connect_cb
         return ERR_OK;
     }
     if (err != ERR_OK) {
-      printf("recv error: %d\n", err);
+      LOG_ERR("recv error: %d\n", err);
       pbuf_free(p);
       return err;
     }
@@ -83,7 +84,7 @@ static err_t tcp_connect_cb(void *cb_arg, struct tcp_pcb *tpcb, err_t err) {
     struct http_request_data *req_data = (struct http_request_data *)cb_arg;
     size_t size = strlen(req_data->content);
     if (err != ERR_OK) {
-      printf("connect err: %d\n", err);
+      LOG_ERR("connect err: %d\n", err);
       goto finally;
     }
     cyw43_arch_lwip_check();
@@ -91,12 +92,12 @@ static err_t tcp_connect_cb(void *cb_arg, struct tcp_pcb *tpcb, err_t err) {
     assert(size < tcp_sndbuf(tpcb));
     err = tcp_write(tpcb, req_data->content, size, 0);
     if (err != ERR_OK) {
-      printf("write err: %d\n", err);
+      LOG_ERR("write err: %d\n", err);
       goto finally;
     }
     err = tcp_output(tpcb);
     if (err != ERR_OK) {
-      printf("output err: %d\n", err);
+      LOG_ERR("output err: %d\n", err);
       goto finally;
     }
 finally:
@@ -112,9 +113,9 @@ static void do_send_http(const char *name, const ip_addr_t *ipaddr, void *cb_arg
 
     // Caller should guarantee this
     assert(req_data != NULL);
-    printf("In do_send_http for %s; data=%s\n", name, req_data->content);
+    LOG_DEBUG("In do_send_http for %s; data=%s\n", name, req_data->content);
     if (ipaddr == NULL) {
-        puts("DNS gave no result");
+        LOG_WARN1("DNS gave no result");
         goto fail;
     }
 
@@ -124,7 +125,7 @@ static void do_send_http(const char *name, const ip_addr_t *ipaddr, void *cb_arg
     cyw43_arch_lwip_end();
     // To be closed by connect_cb
     if (conn == NULL) {
-        puts("Cannot create TCP PCB");
+        LOG_ERR1("Cannot create TCP PCB");
         goto fail;
     }
     req_data->conn = conn;
@@ -134,7 +135,7 @@ static void do_send_http(const char *name, const ip_addr_t *ipaddr, void *cb_arg
     err = tcp_connect(conn, ipaddr, req_data->port, tcp_connect_cb);
     cyw43_arch_lwip_end();
     if (err != ERR_OK) {
-        printf("Cannot connect: %d\n", err);
+        LOG_ERR("Cannot connect: %d\n", err);
         goto fail;
     }
     // If succeeded, req_data and content should be free()d by connect_cb
@@ -153,14 +154,14 @@ fail:
 static bool send_http_request_dns(const char *hostname, const char *path, uint16_t port, bool free_path) {
     struct http_request_data *req_data = malloc(sizeof(struct http_request_data));
     if (req_data == NULL) {
-        puts("Cannot allocate request data");
+        LOG_ERR1("Cannot allocate request data");
         return false;
     }
     size_t size = snprintf(NULL, 0, REQUEST_FMT, path, hostname) + 1;
     // free()d in connect_cb
     char *content = malloc(size);
     if (content == NULL) {
-        puts("Cannot allocate request");
+        LOG_ERR1("Cannot allocate request");
         free(req_data);
         return false;
     }
@@ -176,7 +177,7 @@ static bool send_http_request_dns(const char *hostname, const char *path, uint16
         do_send_http(hostname, &cached_result, req_data);
     }
     else if (err != ERR_INPROGRESS) {
-        printf("Cannot do a DNS request: %d\n", err);
+        LOG_ERR("Cannot do a DNS request: %d\n", err);
         free(content);
         free(req_data);
     }
@@ -192,14 +193,14 @@ static bool send_ddns(void) {
     char *ipaddr;
     const ip_addr_t *ip = &WIFI_NETIF.ip_addr;
     if (ip_addr_isany(ip)) {
-        puts("No IP address yet, skipping DDNS");
+        LOG_WARN1("No IP address yet, skipping DDNS");
         return false;
     }
     ipaddr = ipaddr_ntoa_r(ip, addr, sizeof(addr));
     // This has no reason to fail
     assert(ipaddr);
     snprintf(uri, DDNS_URI_BUFSIZE, DDNS_URI, DDNS_HOSTNAME, DDNS_KEY, ipaddr);
-    printf("Sending DDNS, addr=%s\n", ipaddr);
+    LOG_INFO("Sending DDNS, addr=%s\n", ipaddr);
     bool result = send_http_request_dns(DDNS_HOST, uri, HTTP_DEFAULT_PORT, true);
     return result;
 }
@@ -210,7 +211,7 @@ static bool send_temperature(void) {
     float temperature = temperature_measure();
     char uri[WOLFRAM_URI_BUFSIZE];
     snprintf(uri, WOLFRAM_URI_BUFSIZE, WOLFRAM_URI, WOLFRAM_DATABIN_ID, temperature);
-    puts("Sending temperature");
+    LOG_INFO("Sending temperature");
     bool result = send_http_request_dns(WOLFRAM_HOST, uri, HTTP_DEFAULT_PORT, true);
     return result;
 }
@@ -222,14 +223,14 @@ static bool send_temperature(void) {
 static bool renew_light_alarm(void) {
     datetime_t dt;
     if (ntp_get_stratum() == 16) {
-        puts("No NTP sync yet, skipping light alarm");
+        LOG_WARN1("No NTP sync yet, skipping light alarm");
         return false;
     }
     if (!rtc_get_datetime(&dt)) {
-        puts("RTC not running, skipping light alarm");
+        LOG_WARN1("RTC not running, skipping light alarm");
         return false;
     }
-    puts("Renewing light alarm");
+    LOG_INFO1("Renewing light alarm");
     // Note that this function alters `dt`
     light_register_next_alarm(&dt);
     return true;
@@ -247,7 +248,7 @@ bool tasks_check_run(void) {
 #if ENABLE_DDNS
         result = send_ddns();
         if (!result)
-            puts("DDNS task failed");
+            LOG_ERR1("DDNS task failed");
 #endif
 #if ENABLE_WATCHDOG
         watchdog_update();
@@ -255,7 +256,7 @@ bool tasks_check_run(void) {
 #if ENABLE_TEMPERATURE_SENSOR
         result = send_temperature();
         if (!result)
-            puts("Temperature task failed");
+            LOG_ERR1("Temperature task failed");
 #endif
 #if ENABLE_WATCHDOG
         watchdog_update();
@@ -263,7 +264,7 @@ bool tasks_check_run(void) {
 #if ENABLE_LIGHT
         result = renew_light_alarm();
         if (!result)
-            puts("Light alarm task failed");
+            LOG_ERR1("Light alarm task failed");
 #endif
         next_task_time = make_timeout_time_ms(TASKS_INTERVAL_MS);
         return result;

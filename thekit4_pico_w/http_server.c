@@ -35,6 +35,7 @@
 
 #include "config.h"
 #include "thekit4_pico_w.h"
+#include "log.h"
 
 #include <inttypes.h>
 #include <math.h>
@@ -92,7 +93,7 @@ static const char resp_dashboard[] =
 static err_t http_conn_close(void *arg) {
     struct http_server_conn *conn = (struct http_server_conn *)arg;
     err_t err = ERR_OK;
-    puts("Closing server connection");
+    LOG_INFO1("Closing server connection");
     if (conn->client_pcb) {
         cyw43_arch_lwip_begin();
         tcp_arg(conn->client_pcb, NULL);
@@ -101,7 +102,7 @@ static err_t http_conn_close(void *arg) {
         tcp_err(conn->client_pcb, NULL);
         err = tcp_close(conn->client_pcb);
         if (err != ERR_OK) {
-            printf("Close failed (%d), calling abort\n", err);
+            LOG_ERR("Close failed (%d), calling abort\n", err);
             tcp_abort(conn->client_pcb);
             err = ERR_ABRT;
         }
@@ -117,7 +118,7 @@ static err_t http_conn_close(void *arg) {
 }
 
 static err_t http_conn_fail(void *arg, int status, const char *function) {
-    printf("HTTP server connection failed with status %d at %s\n", status, function);
+    LOG_ERR("HTTP server connection failed with status %d at %s\n", status, function);
     return http_conn_close(arg);
 }
 
@@ -286,7 +287,7 @@ static bool http_req_check_parse(struct http_server_conn *conn) {
         // Max should be 100.000000 and NUL
         char number[12];
         if (pbuf_copy_partial(conn->received, number, 11, offset_level + 6) == 0) {
-            puts("Cannot copy pbuf to string");
+            LOG_ERR1("Cannot copy pbuf to string");
             http_conn_write(conn, resp_500_pre, sizeof(resp_500_pre) - 1, 0);
             http_conn_write(conn, resp_common, sizeof(resp_common) - 1, 0);
             http_conn_write(conn, resp_500_post, sizeof(resp_500_post) - 1, 0);
@@ -365,7 +366,7 @@ static err_t http_server_accept_cb(void *arg, struct tcp_pcb *client_pcb,
         http_conn_fail(arg, err, "accept");
         return ERR_VAL;
     }
-    puts("Client connected");
+    LOG_INFO1("Client connected");
     conn->state = HTTP_ACCEPTED;
 
     conn->client_pcb = client_pcb;
@@ -382,13 +383,13 @@ static bool http_server_open_one(struct http_server *server, uint8_t lwip_type, 
     server->conn.state = HTTP_OTHER;
     server->conn.received = NULL;
 
-    printf("Starting server on [%s]:%u\n", ipaddr_ntoa(ipaddr), HTTP_PORT);
+    LOG_INFO("Starting server on [%s]:%u\n", ipaddr_ntoa(ipaddr), HTTP_PORT);
 
     cyw43_arch_lwip_begin();
     struct tcp_pcb *pcb = tcp_new_ip_type(lwip_type);
     if (!pcb) {
         cyw43_arch_lwip_end();
-        puts("Failed to create pcb");
+        LOG_ERR1("Failed to create pcb");
         return false;
     }
 
@@ -396,7 +397,7 @@ static bool http_server_open_one(struct http_server *server, uint8_t lwip_type, 
     if (err) {
         tcp_close(pcb);
         cyw43_arch_lwip_end();
-        puts("Failed to bind to port");
+        LOG_ERR1("Failed to bind to port");
         return false;
     }
 
@@ -404,7 +405,7 @@ static bool http_server_open_one(struct http_server *server, uint8_t lwip_type, 
     if (!server->server_pcb) {
         tcp_close(pcb);
         cyw43_arch_lwip_end();
-        puts("Failed to listen");
+        LOG_ERR1("Failed to listen");
         return false;
     }
 

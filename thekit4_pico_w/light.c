@@ -44,6 +44,7 @@
 
 #include "config.h"
 #include "thekit4_pico_w.h"
+#include "log.h"
 
 #include <math.h>
 
@@ -134,7 +135,7 @@ void light_toggle(void) {
     last_button1_irq_timestamp = irq_timestamp;
     uint16_t new_level = current_pwm_level ? 0 : 100;
     SET_INTENSITY(new_level);
-    puts("Toggling");
+    LOG_INFO1("Toggling");
 }
 
 void light_init(void) {
@@ -165,7 +166,7 @@ void light_init(void) {
 /// Takes a percentage perceived intensity and dim the light
 void light_dim(float intensity) {
     SET_INTENSITY(intensity);
-    printf("Dimming to %d\n", (int)current_pwm_level);
+    LOG_INFO("Dimming to %d\n", (int)current_pwm_level);
 }
 
 /// Take a single feedback voltage reading
@@ -189,7 +190,7 @@ static void do_register_alarm(const datetime_t *current, int index) {
         rtc_set_alarm(&alarm, light_on);
     else
         rtc_set_alarm(&alarm, light_off);
-    printf("Registered alarm to turn %s the light at %04d-%02d-%02d %d:%02d\n",
+    LOG_INFO("Registered alarm to turn %s the light at %04d-%02d-%02d %d:%02d\n",
            light_sched[index].on ? "on" : "off", alarm.year, alarm.month,
            alarm.day, alarm.hour, alarm.min);
 }
