@@ -37,6 +37,12 @@
 static struct ntp_client ntp_state;
 #endif
 
+static void feed_dog() {
+#if ENABLE_WATCHDOG
+    watchdog_update();
+#endif
+}
+
 static void init() {
     stdio_init_all();
     sleep_ms(1000);
@@ -75,20 +81,18 @@ static void init() {
 #if ENABLE_NTP
     if (!ntp_client_init(&ntp_state))
         LOG_WARN1("Cannot init NTP client");
+    feed_dog();
 #endif
     // Start HTTP server
     if (!http_server_open())
         LOG_WARN1("Cannot open HTTP server");
+    feed_dog();
 
+#if ENABLE_NTP
+    ntp_server_open();
+#endif
     LOG_INFO1("Successfully initialized everything");
 }
-
-void feed_dog() {
-#if ENABLE_WATCHDOG
-    watchdog_update();
-#endif
-}
-
 
 int main() {
     init();

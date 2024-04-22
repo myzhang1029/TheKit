@@ -384,7 +384,7 @@ static bool http_server_open_one(struct http_server *server, uint8_t lwip_type, 
     server->conn.state = HTTP_OTHER;
     server->conn.received = NULL;
 
-    LOG_INFO("Starting server on [%s]:%u\n", ipaddr_ntoa(ipaddr), HTTP_PORT);
+    LOG_INFO("Starting HTTP server on [%s]:%u\n", ipaddr_ntoa(ipaddr), HTTP_PORT);
 
     cyw43_arch_lwip_begin();
     struct tcp_pcb *pcb = tcp_new_ip_type(lwip_type);

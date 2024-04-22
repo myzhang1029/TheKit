@@ -59,7 +59,7 @@ static void ntp_fill_rx_as_ref(struct ntp_message *incoming) {
 /// `incoming` should have been modified before calling this function such that:
 /// - Fields are in host byte order
 /// - `ref_ts` should be replaced with the time the server received the request (from `ntp_fill_rx_as_ref`)
-static void ntp_process_response(const struct ntp_message *incoming, uint8_t stratum, uint32_t ref) {
+static void ntp_process_response(const struct ntp_message *incoming, uint32_t ref) {
     uint32_t t1s = incoming->orig_ts_sec;
     uint32_t t2s = incoming->rx_ts_sec;
     uint32_t t3s = incoming->tx_ts_sec;
@@ -80,14 +80,14 @@ static void ntp_process_response(const struct ntp_message *incoming, uint8_t str
         uint32_t us = ((uint64_t) t3f * 15625ULL) >> 26;
         uint64_t now = ((uint64_t) t3s - NTP_DELTA) * 1000000 + us;
         LOG_DEBUG("New time = %" PRId64 "\n", now);
-        ntp_update_time(now, stratum, ref);
+        ntp_update_time(now, incoming->stratum, ref);
     } else {
         int64_t foffset2 = ((int64_t) t2f - t1f) + ((int64_t) t3f - t4f);
         // factor = 10^6 2^-32 = 5^6 2^-26, divide one more time so it is no longer twice the offset
         int32_t foffset_us = (foffset2 * 15625ULL) >> 27;
         int64_t toffset = soffset2 * 500000 + foffset_us;
         LOG_INFO("Applied offset = %" PRId64 "\n", toffset);
-        ntp_update_time_by_offset(toffset, stratum, ref);
+        ntp_update_time_by_offset(toffset, incoming->stratum, ref);
     }
 }
 
@@ -127,7 +127,7 @@ static void ntp_recv_cb(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip
         LOG_ERR1("Invalid or unsupported NTP response");
         goto bad;
     }
-    ntp_process_response(&incoming, incoming.stratum, ntp_make_ref(addr));
+    ntp_process_response(&incoming, ntp_make_ref(addr));
 bad:
     ntp_req_close(state);
     pbuf_free(p);
@@ -187,7 +187,9 @@ void ntp_client_check_run(struct ntp_client *state) {
         LOG_ERR1("NTP request timed out");
         ntp_req_close(state);
     }
-    if (absolute_time_diff_us(ntp_get_last_sync(), get_absolute_time()) < NTP_INTERVAL_US)
+    if (absolute_time_diff_us(ntp_get_last_sync(), get_absolute_time()) < NTP_INTERVAL_US
+        // if unlikely(just booted), sync
+        && absolute_time_diff_us(nil_time, ntp_get_last_sync()))
         // Not time to sync yet
         // Successful GPS syncs renew `sync_expiry` so we also get here
         return;

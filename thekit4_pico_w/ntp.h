@@ -56,7 +56,7 @@ static const uint8_t NTP_VERSION = 4;
 // Minimum server version we can accept
 static const uint8_t NTP_VERSION_OK = 3;
 // "GPS\0" in host byte order
-static const uint32_t NTP_REF_GPS = 0x47505300;
+static const uint32_t NTP_REF_GPS = 0x00535047;
 
 // ntp_common.c
 uint8_t ntp_get_stratum(void);
@@ -76,5 +76,8 @@ void ntp_dump_debug(const struct ntp_message *msg);
 // ntp_client.c
 bool ntp_client_init(struct ntp_client *state);
 void ntp_client_check_run(struct ntp_client *state);
+
+// ntp_server.c
+bool ntp_server_open(void);
 
 #endif

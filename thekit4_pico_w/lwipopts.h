@@ -17,7 +17,7 @@
 #define MEM_SIZE                    4000
 #define MEMP_NUM_TCP_SEG            32
 #define MEMP_NUM_TCP_PCB            (2 * LWIP_IPV6 + 2 * LWIP_IPV4 + 4)
-#define MEMP_NUM_UDP_PCB            6
+#define MEMP_NUM_UDP_PCB            (LWIP_IPV6 + LWIP_IPV4 + 2 + 4)
 #define MEMP_NUM_ARP_QUEUE          10
 #define MEMP_NUM_SYS_TIMEOUT        14
 #define PBUF_POOL_SIZE              12

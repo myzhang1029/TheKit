@@ -98,10 +98,10 @@ static const size_t DDNS_URI_BUFSIZE = sizeof(DDNS_URI) + sizeof(DDNS_HOST) + si
 
 // Time-related
 #if ENABLE_NTP
-static const char NTP_SERVER[] = "pool.ntp.org";
+static const char NTP_SERVER[] = "time-b-wwv.nist.gov";
 static const uint16_t NTP_PORT = 123;
-// 10 minutes between syncs
-static const uint64_t NTP_INTERVAL_US = 600 * 1000 * 1000;
+// 2 minutes between syncs
+static const uint64_t NTP_INTERVAL_US = 120 * 1000 * 1000;
 // Time to wait in case UDP requests are lost
 static const uint32_t NTP_UDP_TIMEOUT_TIME_MS = 5 * 1000;
 #endif

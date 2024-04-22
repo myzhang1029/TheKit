@@ -31,5 +31,5 @@ similar mindset. :P)
 It contains a fully hand-written HTTP server, controllers for my home-made
 [buck](https://maiyun.me/blog/2022/11/11/Buck-Converter) and
 [boost](https://maiyun.me/blog/2024/03/07/Boost-Converter) converters, a GPS receiver
-with PPS time synchronization support, and an NTP server is planned.
+with PPS time synchronization support, and an NTP server.
 I kind of got a new hobby of reading RFCs from this project (crying face).
