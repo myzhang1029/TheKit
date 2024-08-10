@@ -53,8 +53,8 @@ struct wifi_config_entry {
 
 void irq_init(void);
 
-void temperature_init(void);
-float temperature_measure(void);
+void bmp280_temperature_init(void);
+void bmp280_measure(float *temperature, uint32_t *pressure);
 float vsys_measure(void);
 float temperature_core(void);
 

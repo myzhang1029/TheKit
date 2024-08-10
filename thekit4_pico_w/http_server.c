@@ -185,7 +185,8 @@ static bool http_req_check_parse(struct http_server_conn *conn) {
         char response[279] = {0};
         size_t length;
 #if ENABLE_TEMPERATURE_SENSOR
-        float temperature = temperature_measure();
+        float temperature;
+        bmp280_measure(&temperature, NULL);
 #else
         // JSON doesn't support NaN
         float temperature = -512;

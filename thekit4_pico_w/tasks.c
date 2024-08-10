@@ -209,7 +209,8 @@ static bool send_ddns(void) {
 
 #if ENABLE_TEMPERATURE_SENSOR
 static bool send_temperature(void) {
-    float temperature = temperature_measure();
+    float temperature;
+    bmp280_measure(&temperature, NULL);
     char uri[WOLFRAM_URI_BUFSIZE];
     snprintf(uri, WOLFRAM_URI_BUFSIZE, WOLFRAM_URI, WOLFRAM_DATABIN_ID, temperature);
     LOG_INFO1("Sending temperature");

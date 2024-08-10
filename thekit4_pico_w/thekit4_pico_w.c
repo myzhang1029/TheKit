@@ -60,7 +60,7 @@ static void init() {
     light_init();
 #endif
 #if ENABLE_TEMPERATURE_SENSOR
-    temperature_init();
+    bmp280_temperature_init();
 #endif
 #if ENABLE_GPS
     gps_init();

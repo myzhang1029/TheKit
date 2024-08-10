@@ -7,6 +7,7 @@
 #include "pico/cyw43_arch.h"
 
 #include "hardware/gpio.h"
+#include "hardware/i2c.h"
 
 #include "lwip/ip_addr.h"
 
@@ -60,17 +61,17 @@ static const struct light_sched_entry light_sched[] = {
 };
 #endif
 
+// Light sensor
+// Photocell to ground giving high when dark
+static const uint LIGHT_SENSOR_PIN = 22;
+
 // Temperature-related
 #if ENABLE_TEMPERATURE_SENSOR
-// Temperature pin
-static const uint ADC_TEMP_PIN = 26;
-// NTC base resistance
-static const float R0 = 1e4; // Ohm \pm 1%
-// Temperature corresponding to R0
-static const float T0 = 25.0 + 273.15; // Kelvin
-// divider resistance
-static const float R = 1.10e4;     // Ohm \pm 1%
-static const float BETA = 3977; // Kelvin \pm 0.75%
+// BMP280 Information
+#define BMP280_I2C i2c0
+static const uint BMP280_SDA_PIN = 20;
+static const uint BMP280_SCL_PIN = 21;
+static const uint BMP280_ADDR = 0x76;
 #endif
 
 // Tasks-related
@@ -98,7 +99,7 @@ static const size_t DDNS_URI_BUFSIZE = sizeof(DDNS_URI) + sizeof(DDNS_HOST) + si
 
 // Time-related
 #if ENABLE_NTP
-static const char NTP_SERVER[] = "time-b-wwv.nist.gov";
+static const char NTP_SERVER[] = "time-b-g.nist.gov";
 static const uint16_t NTP_PORT = 123;
 // 2 minutes between syncs
 static const uint64_t NTP_INTERVAL_US = 120 * 1000 * 1000;

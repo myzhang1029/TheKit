@@ -4,7 +4,7 @@ target_compile_definitions(thekit4_pico_w PRIVATE RPI_PICO=1)
 
 target_link_libraries(thekit4_pico_w
     pico_stdlib
-    hardware_adc hardware_pwm hardware_rtc hardware_uart
+    hardware_adc hardware_i2c hardware_pwm hardware_rtc hardware_uart
     pico_lwip_mdns
     pico_cyw43_arch_lwip_threadsafe_background
 )
