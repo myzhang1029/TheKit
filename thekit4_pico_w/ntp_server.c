@@ -42,6 +42,7 @@ static void ntp_server_recv_cb(void *arg, struct udp_pcb *upcb, struct pbuf *p, 
     LOG_INFO("Received NTP request from [%s]:%u\n", ipaddr_ntoa(addr), port);
     ntp_dump_debug(&received);
     p = pbuf_alloc(PBUF_TRANSPORT, NTP_MSG_LEN, PBUF_RAM);
+    assert(p != NULL);
     struct ntp_message *outgoing = (struct ntp_message *) p->payload;
     outgoing->flags = (NTP_VERSION << 3) | 0x4;
     outgoing->stratum = ntp_get_stratum();
@@ -63,6 +64,7 @@ static void ntp_server_recv_cb(void *arg, struct udp_pcb *upcb, struct pbuf *p, 
     outgoing->tx_ts_sec = lwip_htonl((uint32_t) now_spart);
     outgoing->tx_ts_frac = lwip_htonl((uint32_t) now_uspart);
     udp_sendto(upcb, p, addr, port);
+    pbuf_free(p);
 }
 
 static bool ntp_server_open_one(struct udp_pcb *ntp_server_udp_pcb, uint8_t lwip_type, const ip_addr_t *ipaddr) {
