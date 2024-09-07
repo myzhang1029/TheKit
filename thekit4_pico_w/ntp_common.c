@@ -58,10 +58,11 @@ absolute_time_t ntp_get_last_sync(void) {
 // stratum: stratum of `now` (i.e. 0 if `now` is from a GPS receiver)
 // ref: reference identifier of `now`
 void ntp_update_time(uint64_t now, uint8_t stratum, uint32_t ref) {
-    ntp_boot_us = now - to_us_since_boot(get_absolute_time());
+    const absolute_time_t now_abs = get_absolute_time();
+    ntp_boot_us = now - to_us_since_boot(now_abs);
     ntp_stratum = stratum + 1;
     ntp_ref = ref;
-    last_sync = get_absolute_time();
+    last_sync = now_abs;
 }
 
 /// Update with an offset

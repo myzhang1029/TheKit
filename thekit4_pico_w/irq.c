@@ -41,7 +41,7 @@ static void gps_update_rtc(void) {
         return;
     }
     // GPS itself is stratum 0, reference identifier is 0x47505300 ("GPS\0")
-    ntp_update_time(t * 1000000, 0, NTP_REF_GPS);
+    ntp_update_time((t+1) * 1000000, 0, NTP_REF_GPS);
 }
 #endif
 
