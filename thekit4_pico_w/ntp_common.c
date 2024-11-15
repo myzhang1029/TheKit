@@ -107,11 +107,13 @@ void unix_to_local_datetime(time_t result, datetime_t *dt) {
 uint32_t ntp_make_ref(const ip_addr_t *addr) {
     if (IP_IS_V4(addr))
         return ip4_addr_get_u32(ip_2_ip4(addr));
+#if LWIP_IPV6
     else if (IP_IS_V6(addr)) {
         // I don't want to implement MD5 on this platform
         const ip6_addr_t *ip6 = ip_2_ip6(addr);
         return ip6->addr[0] ^ ip6->addr[1] ^ ip6->addr[2] ^ ip6->addr[3];
     }
+#endif
     return 0;
 }
 

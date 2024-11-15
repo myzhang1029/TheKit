@@ -37,7 +37,9 @@ static struct ntp_client ntp_state;
 static void init() {
     set_sys_clock_khz(120000, true);
     stdio_init_all();
+    sleep_ms(1000);
     gps_init();
+    LOG_INFO1("GPS initialized");
 
     ethpio_parameters_t config;
     config.pio_num = ETH_PIO_NUM;
@@ -46,19 +48,14 @@ static void init() {
     memcpy(config.mac_address, MAC_ADDRESS, 6);
     strncpy(config.hostname, "picoeth", 15);
     eth_pio_arch_init(&config);
-    // Set default IP address
-    ip4_addr_t ipaddr;
-    ip4_addr_t netmask;
-    ip4_addr_t gw;
-    IP4_ADDR(&ipaddr, 192, 168, 1, 110);
-    IP4_ADDR(&netmask, 255, 255, 255, 0);
-    IP4_ADDR(&gw, 192, 168, 1, 1);
-    netif_set_addr(&netif, &ipaddr, &netmask, &gw);
+    LOG_INFO1("Ethernet initialized");
     dhcp_start(&netif);
+    LOG_INFO1("DHCP started");
 
     if (!ntp_client_init(&ntp_state))
         LOG_WARN1("Cannot init NTP client");
     ntp_server_open();
+    LOG_INFO1("NTP initialized");
 }
 
 int main() {
