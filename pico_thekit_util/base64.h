@@ -21,6 +21,7 @@
 #define BASE64_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 struct base64decoder {
     uint16_t buf;

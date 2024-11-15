@@ -1,8 +1,8 @@
-add_executable(thekit_pico thekit_pico.c base64.c pcm.c)
+add_executable(thekit_pico thekit_pico.c)
 add_definitions(-DPICO_MALLOC_PANIC=0)
 
 # pull in common dependencies
-target_link_libraries(thekit_pico hardware_pwm pico_stdlib)
+target_link_libraries(thekit_pico pico_thekit_util hardware_pwm pico_stdlib)
 
 # create map/bin/hex file etc.
 pico_add_extra_outputs(thekit_pico)

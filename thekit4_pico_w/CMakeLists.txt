@@ -1,8 +1,9 @@
-add_executable(thekit4_pico_w thekit4_pico_w.c temperature.c gps.c gps_util.c irq.c light.c ntp_client.c ntp_server.c ntp_common.c tasks.c http_server.c wifi.c)
+add_executable(thekit4_pico_w thekit4_pico_w.c temperature.c gps.c irq.c light.c ntp_client.c ntp_server.c ntp_common.c tasks.c http_server.c wifi.c)
 
 target_compile_definitions(thekit4_pico_w PRIVATE RPI_PICO=1)
 
 target_link_libraries(thekit4_pico_w
+    pico_thekit_util
     pico_stdlib
     hardware_adc hardware_i2c hardware_pwm hardware_rtc hardware_uart
     pico_lwip

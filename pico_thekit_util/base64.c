@@ -1,7 +1,7 @@
 /* Simple base64 decoder */
 /*
  *  base64.c
- *  Copyright (C) 2021 Zhang Maiyun <me@maiyun.me>
+ *  Copyright (C) 2021-2024 Zhang Maiyun <me@maiyun.me>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,10 +17,10 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "base64.h"
+
 #include <stdbool.h>
 #include <stdint.h>
-
-#include "base64.h"
 
 // Corresponding base64 index from '+' to 'z'
 const uint8_t DECODE_TABLE[] = {

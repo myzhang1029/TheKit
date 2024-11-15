@@ -1,7 +1,7 @@
 /* PCM Audio Player for Raspberry Pi Pico */
 /*
  *  pcm.c
- *  Copyright (C) 2021 Zhang Maiyun <me@maiyun.me>
+ *  Copyright (C) 2021-2024 Zhang Maiyun <me@maiyun.me>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,8 +26,9 @@
  * and the buffer can be free()d.
 */
 
+#include <malloc.h>
+
 #include "hardware/pwm.h"
-#include "malloc.h"
 #include "pico/stdlib.h"
 
 #include "pcm.h"

@@ -20,6 +20,7 @@ add_compile_options(-Ofast
     -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
 )
 
+add_subdirectory(pico_thekit_util)
 add_subdirectory(thekit2_pico)
 if (PICO_CYW43_SUPPORTED)
     add_compile_definitions(PICO_CYW43_SUPPORTED=1)
