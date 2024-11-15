@@ -17,10 +17,12 @@
  */
 
 #include "config.h"
-#include "thekit4_pico_w.h"
 #include "log.h"
 #include "ntp.h"
 
+#ifdef PICO_CYW43_SUPPORTED
+#include "pico/cyw43_arch.h"
+#endif
 #include "pico/divider.h"
 
 #include "lwip/pbuf.h"
@@ -28,6 +30,9 @@
 
 static void ntp_server_recv_cb(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
 {
+#ifdef PICO_CYW43_SUPPORTED
+    cyw43_arch_lwip_check();
+#endif
     uint64_t now = ntp_get_utc_us(), now_uspart;
     uint64_t now_spart = divmod_u64u64_rem(now, 1000000, &now_uspart);
     now_spart += NTP_DELTA;
@@ -69,6 +74,9 @@ static void ntp_server_recv_cb(void *arg, struct udp_pcb *upcb, struct pbuf *p, 
 
 static bool ntp_server_open_one(struct udp_pcb *ntp_server_udp_pcb, uint8_t lwip_type, const ip_addr_t *ipaddr) {
     LOG_INFO("Starting NTP server on [%s]:%u\n", ipaddr_ntoa(ipaddr), NTP_PORT);
+#ifdef PICO_CYW43_SUPPORTED
+    cyw43_arch_lwip_begin();
+#endif
     ntp_server_udp_pcb = udp_new_ip_type(lwip_type);
     if (!ntp_server_udp_pcb) {
         LOG_ERR1("Failed to create NTP server UDP PCB");
@@ -81,6 +89,9 @@ static bool ntp_server_open_one(struct udp_pcb *ntp_server_udp_pcb, uint8_t lwip
         return false;
     }
     udp_recv(ntp_server_udp_pcb, ntp_server_recv_cb, NULL);
+#ifdef PICO_CYW43_SUPPORTED
+    cyw43_arch_lwip_end();
+#endif
     return true;
 }
 

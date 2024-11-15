@@ -25,6 +25,9 @@
 #include "pico/time.h"
 #include "hardware/rtc.h"
 
+#include "lwip/ip_addr.h"
+#include "lwip/pbuf.h"
+
 // Our current position in the stratum system
 // used in http_server.c and tasks.c
 // It remains 16 if NTP nor GPS is enabled

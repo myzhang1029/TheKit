@@ -43,6 +43,10 @@ static void feed_dog() {
 #endif
 }
 
+#ifndef PICO_CYW43_SUPPORTED
+#error "thekit4_pico_w requires PICO_CYW43_SUPPORTED"
+#endif
+
 static void init() {
     stdio_init_all();
     sleep_ms(1000);

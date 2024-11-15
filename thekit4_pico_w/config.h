@@ -54,10 +54,10 @@ static const uint16_t WRAP = 1000;
 // Light-based alarms
 // Sort chronologically
 static const struct light_sched_entry light_sched[] = {
-    {7, 0, true},
+    {6, 0, true},
     {8, 0, false},
-    {21, 30, true},
-    {22, 30, false},
+    {20, 0, true},
+    {22, 0, false},
 };
 #endif
 
@@ -123,6 +123,6 @@ static const uint GPS_BAUD = 115200;
 
 // Networking-related
 static const char DEFAULT_DNS[] = "1.1.1.1";
-static const bool FORCE_DEFAULT_DNS = true;
+static const bool FORCE_DEFAULT_DNS = false;
 
 #endif

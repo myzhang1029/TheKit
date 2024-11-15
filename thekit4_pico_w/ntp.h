@@ -28,6 +28,9 @@
 
 #include "pico/util/datetime.h"
 
+#include "lwip/ip_addr.h"
+#include "lwip/pbuf.h"
+
 // The endianess of this structure is flexible
 struct ntp_message {
     /// Leap indicator, version number, mode
@@ -46,6 +49,15 @@ struct ntp_message {
     uint32_t rx_ts_frac;
     uint32_t tx_ts_sec;
     uint32_t tx_ts_frac;
+};
+
+struct ntp_client {
+    ip_addr_t server_address;
+    struct udp_pcb *pcb;
+    bool in_progress;
+    // If `in_progress` is true, this is the time when the request will be
+    // considered lost.
+    absolute_time_t deadline;
 };
 
 static const uint16_t NTP_MSG_LEN = sizeof(struct ntp_message);

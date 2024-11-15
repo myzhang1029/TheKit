@@ -30,15 +30,6 @@
 #undef uint32_t
 typedef u32_t uint32_t;
 
-struct ntp_client {
-    ip_addr_t server_address;
-    struct udp_pcb *pcb;
-    bool in_progress;
-    // If `in_progress` is true, this is the time when the request will be
-    // considered lost.
-    absolute_time_t deadline;
-};
-
 struct light_sched_entry {
     int8_t hour;
     int8_t min;

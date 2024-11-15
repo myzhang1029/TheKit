@@ -17,7 +17,6 @@
  */
 
 #include "config.h"
-#include "thekit4_pico_w.h"
 #include "log.h"
 #include "ntp.h"
 
@@ -26,7 +25,9 @@
 #include <string.h>
 #include <time.h>
 
+#ifdef PICO_CYW43_SUPPORTED
 #include "pico/cyw43_arch.h"
+#endif
 #include "pico/divider.h"
 #include "pico/stdlib.h"
 
@@ -96,9 +97,13 @@ static void ntp_req_close(struct ntp_client *state) {
     if (!state)
         return;
     if (state->pcb) {
+#ifdef PICO_CYW43_SUPPORTED
         cyw43_arch_lwip_begin();
+#endif
         udp_remove(state->pcb);
+#ifdef PICO_CYW43_SUPPORTED
         cyw43_arch_lwip_end();
+#endif
         state->pcb = NULL;
     }
     state->in_progress = false;
@@ -109,7 +114,9 @@ static void ntp_recv_cb(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip
     struct ntp_client *state = (struct ntp_client *)arg;
     // This struct should use host byte order
     struct ntp_message incoming;
+#ifdef PICO_CYW43_SUPPORTED
     cyw43_arch_lwip_check();
+#endif
     // Sanity check
     if (!ip_addr_cmp(addr, &state->server_address) || port != NTP_PORT) {
         LOG_ERR1("Invalid NTP response");
@@ -144,13 +151,17 @@ static void do_send_ntp_request(const char *_hostname, const ip_addr_t *ipaddr, 
         ntp_req_close(state);
         return;
     }
+#ifdef PICO_CYW43_SUPPORTED
     cyw43_arch_lwip_begin();
+#endif
     // Create a new UDP PCB structure. That this function is called
     // should be enough evidence that we are the only one working on
     // the `state` structure
     state->pcb = udp_new_ip_type(IPADDR_TYPE_ANY);
     if (!state->pcb) {
+#ifdef PICO_CYW43_SUPPORTED
         cyw43_arch_lwip_end();
+#endif
         LOG_ERR1("Failed to create pcb");
         ntp_req_close(state);
         return;
@@ -164,7 +175,9 @@ static void do_send_ntp_request(const char *_hostname, const ip_addr_t *ipaddr, 
     ntp_fill_tx(outgoing);
     udp_sendto(state->pcb, p, &state->server_address, NTP_PORT);
     pbuf_free(p);
+#ifdef PICO_CYW43_SUPPORTED
     cyw43_arch_lwip_end();
+#endif
 }
 
 /// Perform initialisation
@@ -203,9 +216,13 @@ void ntp_client_check_run(struct ntp_client *state) {
     // Mark this before actually calling any lwIP functions,
     // so we don't overwrite stuff and cause a memory leak
     state->in_progress = true;
+#ifdef PICO_CYW43_SUPPORTED
     cyw43_arch_lwip_begin();
+#endif
     int err = dns_gethostbyname(NTP_SERVER, &state->server_address, do_send_ntp_request, state);
+#ifdef PICO_CYW43_SUPPORTED
     cyw43_arch_lwip_end();
+#endif
 
     if (err == ERR_OK) {
         // Cached result
