@@ -21,4 +21,8 @@ add_compile_options(-Ofast
 )
 
 add_subdirectory(thekit2_pico)
-add_subdirectory(thekit4_pico_w)
+if (PICO_CYW43_SUPPORTED)
+    add_compile_definitions(PICO_CYW43_SUPPORTED=1)
+    add_subdirectory(thekit4_pico_w)
+endif()
+add_subdirectory(pico_ethntp)

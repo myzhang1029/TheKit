@@ -17,15 +17,15 @@
  */
 
 #include "config.h"
-#include "thekit4_pico_w.h"
 #include "gps_util.h"
 
 #include <time.h>
 
 #include "pico/stdlib.h"
 
-#include "hardware/uart.h"
+#include "hardware/gpio.h"
 #include "hardware/rtc.h"
+#include "hardware/uart.h"
 
 #if ENABLE_GPS
 // Marker: static variable

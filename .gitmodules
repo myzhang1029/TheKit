@@ -1,0 +1,3 @@
+[submodule "pico_ethntp/pico_eth"]
+	path = pico_ethntp/pico_eth
+	url = https://github.com/myzhang1029/pico_eth
